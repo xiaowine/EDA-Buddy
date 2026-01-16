@@ -1,3 +1,4 @@
+import type { SolveWidthOptions, SolveWidthResult } from '../types/wire';
 import { MM_TO_MIL } from './utils';
 
 // 默认常量
@@ -30,13 +31,7 @@ export const calcTraceCurrent = (width_mm: number, thick_mm: number, deltaT: num
  * 使用稳健的二分法在宽度区间内求解（单位为 mm）
  * @returns { width_mm|null, converged, iterations }
  */
-export function solveWidthFromCurrent(
-	I_A: number,
-	thick_mm: number,
-	deltaT: number,
-	isExternal = true,
-	opts?: { minWidthMm?: number; maxWidthMm?: number; tol?: number; maxIter?: number },
-) {
+export function solveWidthFromCurrent(I_A: number, thick_mm: number, deltaT: number, isExternal = true, opts?: SolveWidthOptions): SolveWidthResult {
 	const minW = opts?.minWidthMm ?? 1e-4;
 	const maxW = opts?.maxWidthMm ?? 100;
 	const tol = opts?.tol ?? 1e-6;

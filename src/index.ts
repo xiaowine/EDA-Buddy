@@ -18,3 +18,10 @@ export function wire(): void {
 export function inductor(): void {
 	openPage('Inductor', 393.4, 421.4);
 }
+export function diffPair(): void {
+	openPage('DiffPair', 733.4, 382.7);
+}
+
+export function vDivision(): void {
+	openPage('VDivision', 393.4, 421.4);
+}

@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
+import DiffPair from './pages/DiffPair.vue';
 import Inductor from './pages/Inductor.vue';
+import VDivision from './pages/VDivision.vue';
 import Via from './pages/Via.vue';
 import Wire from './pages/Wire.vue';
 
@@ -21,6 +23,16 @@ const router = createRouter({
 			path: '/Inductor',
 			name: 'Inductor',
 			component: Inductor,
+		},
+		{
+			path: '/DiffPair',
+			name: 'DiffPair',
+			component: DiffPair,
+		},
+		{
+			path: '/VDivision',
+			name: 'VDivision',
+			component: VDivision,
 		},
 		{
 			path: '/',

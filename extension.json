@@ -43,6 +43,16 @@
 						"id": "Inductor",
 						"title": "Inductor...",
 						"registerFn": "inductor"
+					},
+					{
+						"id": "DiffPair",
+						"title": "DiffPair...",
+						"registerFn": "diffPair"
+					},
+					{
+						"id": "VDivision",
+						"title": "VDivision...",
+						"registerFn": "vDivision"
 					}
 				]
 			}
@@ -66,6 +76,16 @@
 						"id": "Inductor",
 						"title": "Inductor...",
 						"registerFn": "inductor"
+					},
+					{
+						"id": "DiffPair",
+						"title": "DiffPair...",
+						"registerFn": "diffPair"
+					},
+					{
+						"id": "VDivision",
+						"title": "VDivision...",
+						"registerFn": "vDivision"
 					}
 				]
 			}
@@ -89,6 +109,16 @@
 						"id": "Inductor",
 						"title": "Inductor...",
 						"registerFn": "inductor"
+					},
+					{
+						"id": "DiffPair",
+						"title": "DiffPair...",
+						"registerFn": "diffPair"
+					},
+					{
+						"id": "VDivision",
+						"title": "VDivision...",
+						"registerFn": "vDivision"
 					}
 				]
 			}
