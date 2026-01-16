@@ -157,12 +157,6 @@ const selectedMap = reactive<Record<string, boolean>>({});
 
 const idOf = (p: IPCB_DifferentialPairItem) => `${p.positiveNet}||${p.negativeNet}`;
 
-const toDP = (p: any): IPCB_DifferentialPairItem => ({
-    name: p?.name ?? '',
-    positiveNet: p?.positiveNet ?? '',
-    negativeNet: p?.negativeNet ?? '',
-});
-
 const selectedCount = computed(() => {
     const all = [...normalPairs.value, ...duplicatedPairs.value];
     return all.filter((p) => !!selectedMap[idOf(p)]).length;
@@ -199,7 +193,6 @@ onMounted(async () => {
 const applyDiffPairs = async () => {
     console.log('应用差分对:', normalPairs.value);
     if (!isEDA) return;
-    // gather selected pairs from normal and duplicated lists
     const allCandidates = [...normalPairs.value, ...duplicatedPairs.value];
     const selected = allCandidates.filter((p) => selectedMap[idOf(p)]);
     if (selected.length === 0) {
@@ -236,14 +229,12 @@ const refreshDiffPairs = async () => {
             ? await Promise.all([eda.pcb_Net.getAllNetsName(), eda.pcb_Drc.getAllDifferentialPairs()])
             : [test, []];
         totalNets.value = now_nets.length;
-        // convert existing differential pairs from EDA shape to our lightweight type
         const existingSimple = (nowDiffPairsRaw || []);
         const res = identifyNewDiffPairs(now_nets, existingSimple as any);
         duplicatedPairs.value = (res.duplicatedPairs || []);
         normalPairs.value = (res.normalPairs || []);
         existingPairs.value = (res.existingPairs || existingSimple || []);
 
-        // 清理 selectedMap：只保留当前识别出的 normal/duplicated 的选择键
         const currentIds = new Set([...normalPairs.value, ...duplicatedPairs.value].map(idOf));
         Object.keys(selectedMap).forEach((k) => {
             if (!currentIds.has(k)) delete selectedMap[k];
@@ -257,7 +248,6 @@ const refreshDiffPairs = async () => {
 
 const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
     if (!isEDA) {
-        // in test mode just remove locally
         existingPairs.value = existingPairs.value.filter((p) => idOf(p) !== idOf(pair));
         return;
     }
@@ -288,7 +278,7 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
     box-shadow: var(--calc-shadow);
     max-width: 700px;
     width: 100%;
-        color: var(--calc-text);
+    color: var(--calc-text);
 
     .calc-header {
         @include calc-header;
