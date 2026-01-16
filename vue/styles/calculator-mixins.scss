@@ -19,6 +19,15 @@
 	--calc-shadow: 0 6px 18px rgba(13, 38, 59, 0.06);
 	--calc-focus-ring: 0 0 0 4px rgba(96, 165, 250, 0.08);
 
+	// table and button extras
+	--calc-table-header: rgba(15, 23, 42, 0.03);
+	--calc-table-row-odd: rgba(15, 23, 42, 0.02);
+	--calc-row-hover: rgba(96, 165, 250, 0.04);
+	--calc-refresh-hover-bg: rgba(96, 165, 250, 0.08);
+	--calc-btn-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+	--calc-delete-hover-bg: rgba(185, 28, 28, 0.06);
+	--calc-delete-hover-border: rgba(184, 28, 28, 0.3);
+
 	// 深色主题变量覆盖
 	@media (prefers-color-scheme: dark) {
 		--calc-bg: #404040;
@@ -31,6 +40,15 @@
 		--calc-error: #fca5a5;
 		--calc-shadow: none;
 		--calc-focus-ring: 0 0 0 4px rgba(59, 130, 246, 0.24);
+
+		// dark mode table/button extras
+		--calc-table-header: rgba(255, 255, 255, 0.04);
+		--calc-table-row-odd: rgba(255, 255, 255, 0.02);
+		--calc-row-hover: rgba(59, 130, 246, 0.06);
+		--calc-refresh-hover-bg: rgba(59, 130, 246, 0.08);
+		--calc-btn-shadow: 0 4px 12px rgba(59, 130, 246, 0.24);
+		--calc-delete-hover-bg: rgba(255, 255, 255, 0.03);
+		--calc-delete-hover-border: rgba(255, 255, 255, 0.06);
 	}
 }
 

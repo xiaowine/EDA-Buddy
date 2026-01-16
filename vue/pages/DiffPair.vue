@@ -288,6 +288,7 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
     box-shadow: var(--calc-shadow);
     max-width: 700px;
     width: 100%;
+        color: var(--calc-text);
 
     .calc-header {
         @include calc-header;
@@ -329,6 +330,7 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
     h4 {
         margin: 8px 0 6px 0;
         font-size: 14px;
+        color: var(--calc-text);
     }
 
     .dp-table {
@@ -408,23 +410,22 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
 
     .dp-table th {
         font-weight: 600;
-        background: rgba(15, 23, 42, 0.03);
-
-        @media (prefers-color-scheme: dark) {
-            background: rgba(255, 255, 255, 0.04);
-        }
+        background: var(--calc-table-header);
+        color: var(--calc-text);
     }
 
     .dp-table tbody tr:nth-child(odd) {
-        background: rgba(15, 23, 42, 0.02);
+        background: var(--calc-table-row-odd);
+        color: var(--calc-text);
     }
 
     .dp-table tbody tr:hover {
-        background: rgba(96, 165, 250, 0.04);
+        background: var(--calc-row-hover);
+        color: var(--calc-text);
     }
 
     .dp-table-dup td {
-        color: #b91c1c;
+        color: var(--calc-error);
     }
 
     .dp-table-exist td {
@@ -534,7 +535,7 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
         border: 1px solid var(--calc-border);
 
         &:hover:not(:disabled) {
-            background: rgba(96, 165, 250, 0.08);
+            background: var(--calc-refresh-hover-bg);
             border-color: var(--calc-primary);
         }
     }
@@ -545,7 +546,7 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
 
         &:hover:not(:disabled) {
             background: #3b82f6;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            box-shadow: var(--calc-btn-shadow);
         }
 
         &:disabled {
@@ -562,7 +563,7 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
 
     .delete-btn {
         background: transparent;
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--calc-border);
         color: var(--calc-text);
         padding: 4px 8px;
         border-radius: 6px;
@@ -571,9 +572,23 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
     }
 
     .delete-btn:hover {
-        background: rgba(255, 0, 0, 0.05);
-        border-color: rgba(184, 28, 28, 0.3);
-        color: #b91c1c;
+        background: var(--calc-delete-hover-bg);
+        border-color: var(--calc-delete-hover-border);
+        color: var(--calc-error);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .delete-btn {
+            border-color: var(--calc-card-border);
+            color: var(--calc-text);
+            background: transparent;
+        }
+
+        .delete-btn:hover {
+            background: var(--calc-delete-hover-bg);
+            border-color: var(--calc-delete-hover-border);
+            color: var(--calc-error);
+        }
     }
 }
 </style>
