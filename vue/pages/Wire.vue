@@ -69,7 +69,8 @@
         <div class="calc-result">
             <div v-if="error" class="error">{{ error }}</div>
             <div v-else class="calc-result-card" style="padding: 8px;">
-                <div class="calc-result-value">{{ resultDisplay }} <span class="calc-result-unit">{{ resultUnit
+                <div class="calc-result-value"><span class="calc-result-number">{{ resultDisplay }}</span> <span
+                        class="calc-result-unit">{{ resultUnit
                         }}</span></div>
                 <div class="calc-result-note">基于 IPC-2221 经验公式 <br>嘉立创默认外层铜厚1oz，内层0.5oz</div>
             </div>
@@ -246,6 +247,7 @@ const applyRecommended = () => {
 
     .calc-result {
         @include calc-result;
+        height: 66px; // 固定高度防止跳动
     }
 
     .calc-result-card {

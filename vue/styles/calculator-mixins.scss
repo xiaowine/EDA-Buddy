@@ -5,7 +5,7 @@
 	// 字体大小
 	--font-size-base: 13px;
 	--font-size-header: 17px;
-	--font-size-value: 22px;
+	--font-size-value: 20px;
 
 	// 浅色主题变量
 	--calc-bg: #fff;
@@ -205,6 +205,9 @@
 // 结果容器样式 mixin
 @mixin calc-result {
 	margin-top: 12px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
 
 	.error {
 		color: var(--calc-error);
@@ -212,6 +215,15 @@
 		padding: 8px;
 		border-radius: 6px;
 	}
+}
+
+// 结果内部容器样式 mixin - 防止高度跳动
+@mixin calc-result-inner {
+	min-height: 42px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 8px;
 }
 
 // 结果卡片样式 mixin
@@ -279,4 +291,10 @@
 			transform: none;
 		}
 	}
+}
+
+/* 公共：高亮结果数值 */
+.calc-result-number {
+	color: var(--calc-primary);
+	font-weight: 600;
 }

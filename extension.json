@@ -38,6 +38,11 @@
 						"id": "Wire",
 						"title": "Wire...",
 						"registerFn": "wire"
+					},
+					{
+						"id": "Inductor",
+						"title": "Inductor...",
+						"registerFn": "inductor"
 					}
 				]
 			}
@@ -51,6 +56,16 @@
 						"id": "Via",
 						"title": "Via...",
 						"registerFn": "via"
+					},
+					{
+						"id": "Wire",
+						"title": "Wire...",
+						"registerFn": "wire"
+					},
+					{
+						"id": "Inductor",
+						"title": "Inductor...",
+						"registerFn": "inductor"
 					}
 				]
 			}
@@ -64,6 +79,16 @@
 						"id": "Via",
 						"title": "Via...",
 						"registerFn": "via"
+					},
+					{
+						"id": "Wire",
+						"title": "Wire...",
+						"registerFn": "wire"
+					},
+					{
+						"id": "Inductor",
+						"title": "Inductor...",
+						"registerFn": "inductor"
 					}
 				]
 			}

@@ -8,7 +8,7 @@ import { MM_TO_MIL } from './utils';
  * @returns 最大电流 (Amps)
  */
 export const calculateViaCurrent = (d_mm: number, t_mm: number, deltaT: number): number => {
-	const k = 0.024; // 采用保守的内层系数
+	const k = 0.048; // 采用外层系数
 
 	// 1. 转换单位并计算截面积 A (sq mil)
 	const d = d_mm * MM_TO_MIL;

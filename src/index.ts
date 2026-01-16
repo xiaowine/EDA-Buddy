@@ -3,12 +3,18 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function activate(status?: 'onStartupFinished', arg?: string): void {}
 
+const openPage = (name: string, width: number, height: number) => {
+	eda.sys_Storage.setExtensionUserConfig('page', name);
+	eda.sys_IFrame.openIFrame('/vue-dist/index.html', width, height);
+};
+
 export function via(): void {
-	eda.sys_Storage.setExtensionUserConfig('page', 'Via');
-	eda.sys_IFrame.openIFrame('/vue-dist/index.html', 393.4, 292.8);
+	openPage('Via', 393.4, 308.7);
 }
 
 export function wire(): void {
-	eda.sys_Storage.setExtensionUserConfig('page', 'Wire');
-	eda.sys_IFrame.openIFrame('/vue-dist/index.html', 385.4, 365.4);
+	openPage('Wire', 385.4, 383.4);
+}
+export function inductor(): void {
+	openPage('Inductor', 393.4, 421.4);
 }

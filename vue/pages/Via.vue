@@ -40,8 +40,9 @@
         <div class="calc-result">
             <div v-if="error" class="error">{{ error }}</div>
             <div v-else class="calc-result-card" style="gap: 12px;">
-                <div class="calc-result-value">{{ resultDisplay }} <span class="calc-result-unit">A</span></div>
-                <div class="calc-result-note">计算最大电流（基于 IPC-2221 经验公式）<br>嘉立创镀层厚度为0.018 mm</div>
+                <div class="calc-result-value"><span class="calc-result-number">{{ resultDisplay }}</span> <span
+                        class="calc-result-unit">A</span></div>
+                <div class="calc-result-note">基于 IPC-2221 经验公式<br>嘉立创镀层厚度为0.018 mm</div>
             </div>
         </div>
     </div>
@@ -169,11 +170,16 @@ const resultDisplay = computed(() => {
 
     .calc-result {
         @include calc-result;
+        height: 66px; // 固定高度防止跳动
     }
 
     .calc-result-card {
         @include calc-result-card;
         padding: 10px 12px;
+    }
+
+    .calc-result-inner {
+        @include calc-result-inner;
     }
 
     .calc-result-value {

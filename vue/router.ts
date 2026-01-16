@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
+import Inductor from './pages/Inductor.vue';
 import Via from './pages/Via.vue';
 import Wire from './pages/Wire.vue';
 
@@ -15,6 +16,11 @@ const router = createRouter({
 			path: '/Wire',
 			name: 'Wire',
 			component: Wire,
+		},
+		{
+			path: '/Inductor',
+			name: 'Inductor',
+			component: Inductor,
 		},
 		{
 			path: '/',
