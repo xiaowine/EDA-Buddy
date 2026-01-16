@@ -1,27 +1,37 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 
-import First from './pages/First.vue';
-import Second from './pages/Second.vue';
+import Via from './pages/Via.vue';
+import Wire from './pages/Wire.vue';
 
 const router = createRouter({
-	history: createWebHistory(import.meta.env.BASE_URL),
+	history: createWebHashHistory('vue-dist'),
 	routes: [
 		{
-			path: '/:pathMatch(.*)*',
-			name: 'not-found',
-			redirect: { name: 'First' },
+			path: '/Via',
+			name: 'Via',
+			component: Via,
 		},
 		{
-			path: '/First',
-			name: 'First',
-			component: First,
+			path: '/Wire',
+			name: 'Wire',
+			component: Wire,
 		},
 		{
 			path: '/',
-			name: 'Second',
-			component: Second,
+			name: 'home',
+			redirect: { name: 'Via' },
+		},
+		{
+			path: '/:pathMatch(.*)*',
+			name: 'not-found',
+			redirect: { name: 'Via' },
 		},
 	],
+});
+
+// 添加导航守卫，处理路由错误
+router.onError((error) => {
+	console.error('路由错误:', error);
 });
 
 export default router;

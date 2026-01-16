@@ -1,10 +1,10 @@
 {
-	"name": "pro-api-sdk",
-	"version": "1.1.1",
-	"description": "嘉立创EDA & EasyEDA 专业版扩展 API 开发工具",
-	"author": "JLCEDA <support@lceda.cn>",
-	"license": "Apache-2.0",
-	"homepage": "https://pro.lceda.cn/",
+	"name": "eda-buddy",
+	"version": "0.0.1",
+	"description": "EDA伙伴，你的另一个贴心助手",
+	"author": "xiao_wine <xiaowine0@gmail.com>",
+	"license": "GPL v3",
+	"homepage": "https://github.com/xiaowine/EDA-Buddy",
 	"scripts": {
 		"compile": "rimraf ./dist/ && ts-node ./config/esbuild.prod.ts",
 		"prepare": "husky",

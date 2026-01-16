@@ -1,64 +1,69 @@
 {
-	"name": "pro-api-sdk",
-	"uuid": "40134a081e6b488db1ab0ab4da761672",
-	"displayName": "PRO API SDK",
-	"description": "嘉立创EDA & EasyEDA 专业版扩展 API 开发工具",
-	"version": "1.0.0",
-	"publisher": "JLCEDA <support@lceda.cn>",
+	"name": "eda-buddy",
+	"uuid": "20c8eb9f7a5646b1af6302385c30eff6",
+	"displayName": "EDA Buddy",
+	"description": "EDA伙伴，你的另一个画板小助手",
+	"version": "0.0.1",
+	"publisher": "xiao_wine",
 	"engines": {
 		"eda": "^2.3.0"
 	},
-	"license": "Apache-2.0",
+	"license": "GPL v3",
 	"repository": {
-		"type": "extension-store",
-		"url": ""
+		"type": "github",
+		"url": "https://github.com/xiaowine/EDA-Buddy"
 	},
 	"categories": "Other",
-	"keywords": ["SDK"],
+	"keywords": ["Schematic", "PCB"],
 	"images": {
 		"logo": "./images/logo.png"
 	},
-	"homepage": "https://pro.lceda.cn",
-	"bugs": "https://lceda.cn/page/feedback?originPage=other",
+	"homepage": "https://github.com/xiaowine/EDA-Buddy",
+	"bugs": "https://github.com/xiaowine/EDA-Buddy/issues/new",
 	"activationEvents": {},
 	"entry": "./dist/index",
 	"dependentExtensions": {},
 	"headerMenus": {
 		"home": [
 			{
-				"id": "API SDK",
-				"title": "API SDK",
+				"id": "EDA Buddy",
+				"title": "EDA Buddy",
 				"menuItems": [
 					{
-						"id": "About",
-						"title": "About...",
-						"registerFn": "about"
+						"id": "Via",
+						"title": "Via...",
+						"registerFn": "via"
+					},
+					{
+						"id": "Wire",
+						"title": "Wire...",
+						"registerFn": "wire"
 					}
 				]
 			}
 		],
 		"sch": [
 			{
-				"id": "API SDK",
-				"title": "API SDK",
+				"id": "EDA Buddy",
+				"title": "EDA Buddy",
 				"menuItems": [
 					{
-						"id": "About",
-						"title": "About...",
-						"registerFn": "about"
+						"id": "Via",
+						"title": "Via...",
+						"registerFn": "via"
 					}
 				]
 			}
 		],
 		"pcb": [
 			{
-				"id": "API SDK",
-				"title": "API SDK",
+				"id": "EDA Buddy",
+				"title": "EDA Buddy",
 				"menuItems": [
 					{
-						"id": "About",
-						"title": "About...",
-						"registerFn": "about"
+						"id": "Via",
+						"title": "Via...",
+						"registerFn": "via"
 					}
 				]
 			}
