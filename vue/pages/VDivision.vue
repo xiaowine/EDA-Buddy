@@ -71,8 +71,9 @@
                         font-weight="bold">R1</text>
                     <foreignObject x="145" y="134" width="60" height="32">
                         <div xmlns="http://www.w3.org/1999/xhtml">
-                            <input type="text" :value="formatResistance(r1).replace('Ω', '')" class="svg-input r-input"
-                                :readonly="mode === 'reverse'" @input="updateR1" placeholder="1M" />
+                            <input type="text" :value="r1InputValue" class="svg-input r-input"
+                                :readonly="mode === 'reverse'" @input="updateR1Input" @blur="commitR1"
+                                placeholder="1M" />
                         </div>
                     </foreignObject>
                     <text x="210" y="148" font-size="12" fill="#008000" opacity="0.8">Ω</text>
@@ -82,8 +83,9 @@
                         font-weight="bold">R2</text>
                     <foreignObject x="145" y="254" width="60" height="32">
                         <div xmlns="http://www.w3.org/1999/xhtml">
-                            <input type="text" :value="formatResistance(r2).replace('Ω', '')" class="svg-input r-input"
-                                :readonly="mode === 'reverse'" @input="updateR2" placeholder="10k" />
+                            <input type="text" :value="r2InputValue" class="svg-input r-input"
+                                :readonly="mode === 'reverse'" @input="updateR2Input" @blur="commitR2"
+                                placeholder="10k" />
                         </div>
                     </foreignObject>
                     <text x="210" y="268" font-size="12" fill="#008000" opacity="0.8">Ω</text>
@@ -92,8 +94,8 @@
                     <circle cx="180" cy="220" r="5" fill="#dc2626" />
                     <foreignObject x="190" y="204" width="60" height="32">
                         <div xmlns="http://www.w3.org/1999/xhtml">
-                            <input type="number" :value="mode === 'forward' ? vout.toFixed(3) : vtarget.toFixed(3)"
-                                :readonly="mode === 'forward'" @input="updateVtarget" class="svg-input vout-input"
+                            <input type="number" :value="voutInputValue" step="0.001" :readonly="mode === 'forward'"
+                                @input="updateVtargetInput" @blur="commitVtarget" class="svg-input vout-input"
                                 :placeholder="mode === 'forward' ? '0.119' : '6.0'" />
                         </div>
                     </foreignObject>
@@ -177,8 +179,8 @@
         </div>
 
         <!-- 参数设置对话框 -->
-        <div v-if="showSettings" class="dialog-overlay" @click.self="showSettings = false">
-            <div class="dialog">
+        <div v-if="showSettings" class="dialog-overlay" @click.self="handleOverlayClick">
+            <div class="dialog" @click.stop>
                 <div class="dialog-header">
                     <h3>参数设置</h3>
                     <button @click="showSettings = false" class="close-btn">×</button>
@@ -267,6 +269,11 @@ const r1 = ref(10000)
 const r2 = ref(10000)
 const vtarget = ref(6)
 
+// 输入框的临时输入值
+const r1InputValue = ref(formatResistance(10000).replace('Ω', ''))
+const r2InputValue = ref(formatResistance(10000).replace('Ω', ''))
+const voutInputValue = ref('6.000')
+
 const showSettings = ref(false)
 const isCalculating = ref(false)
 const selectedIndex = ref<number | null>(null)
@@ -291,19 +298,37 @@ const powerTotal = computed(() => powerR1.value + powerR2.value)
 const rth = computed(() => calcTheveninResistance(r1.value, r2.value))
 
 // 输入处理函数
-const updateR1 = (event: Event) => {
+const updateR1Input = (event: Event) => {
     const target = event.target as HTMLInputElement
-    r1.value = parseResistance(target.value)
+    r1InputValue.value = target.value
 }
 
-const updateR2 = (event: Event) => {
-    const target = event.target as HTMLInputElement
-    r2.value = parseResistance(target.value)
+const commitR1 = () => {
+    const parsed = parseResistance(r1InputValue.value)
+    r1.value = parsed
+    r1InputValue.value = formatResistance(parsed).replace('Ω', '')
 }
 
-const updateVtarget = (event: Event) => {
+const updateR2Input = (event: Event) => {
     const target = event.target as HTMLInputElement
-    vtarget.value = parseFloat(target.value) || 0
+    r2InputValue.value = target.value
+}
+
+const commitR2 = () => {
+    const parsed = parseResistance(r2InputValue.value)
+    r2.value = parsed
+    r2InputValue.value = formatResistance(parsed).replace('Ω', '')
+}
+
+const updateVtargetInput = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    voutInputValue.value = target.value
+}
+
+const commitVtarget = () => {
+    const parsed = parseFloat(voutInputValue.value) || 0
+    vtarget.value = parsed
+    voutInputValue.value = parsed.toFixed(3)
 }
 
 // 反向计算
@@ -349,6 +374,40 @@ const applySettings = () => {
     calculateReverse()
 }
 
+// 处理 dialog 背景点击，避免文本选择操作导致关闭
+const handleOverlayClick = () => {
+    // 如果有文本被选中，说明用户正在进行文本选择操作，不应该关闭 dialog
+    const selection = window.getSelection()
+    if (!selection || selection.toString().length === 0) {
+        showSettings.value = false
+    }
+}
+
+// 监听 r1、r2、vtarget 变化以更新输入框显示
+watch(r1, (newVal) => {
+    // 仅在输入框不是焦点时更新
+    const r1Input = document.querySelector('.r-input[placeholder="1M"]') as HTMLInputElement
+    if (r1Input && document.activeElement !== r1Input) {
+        r1InputValue.value = formatResistance(newVal).replace('Ω', '')
+    }
+})
+
+watch(r2, (newVal) => {
+    const r2Input = document.querySelector('.r-input[placeholder="10k"]') as HTMLInputElement
+    if (r2Input && document.activeElement !== r2Input) {
+        r2InputValue.value = formatResistance(newVal).replace('Ω', '')
+    }
+})
+
+watch(vout, (newVal) => {
+    if (mode.value === 'forward') {
+        const voutInput = document.querySelector('.vout-input') as HTMLInputElement
+        if (voutInput && document.activeElement !== voutInput) {
+            voutInputValue.value = newVal.toFixed(3)
+        }
+    }
+})
+
 // 监听模式变化
 watch(mode, (newMode) => {
     if (newMode === 'reverse') {
@@ -361,16 +420,6 @@ watch([vin, vtarget], () => {
     if (mode.value === 'reverse') {
         calculateReverse()
     }
-})
-
-// 监听模式变化时自动计算
-watch(mode, (newMode) => {
-    if (newMode === 'reverse') calculateReverse()
-})
-
-// 监听输入变化时重新计算（仅反向模式）
-watch([vin, vtarget], () => {
-    if (mode.value === 'reverse') calculateReverse()
 })
 </script>
 
