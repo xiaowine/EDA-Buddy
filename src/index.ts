@@ -23,5 +23,5 @@ export function diffPair(): void {
 }
 
 export function vDivision(): void {
-	openPage('VDivision', 393.4, 421.4);
+	openPage('VDivision', 633.4, 413.4);
 }

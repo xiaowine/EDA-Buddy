@@ -196,7 +196,7 @@ const applyDiffPairs = async () => {
     const allCandidates = [...normalPairs.value, ...duplicatedPairs.value];
     const selected = allCandidates.filter((p) => selectedMap[idOf(p)]);
     if (selected.length === 0) {
-        eda.sys_Dialog.showInformationMessage('未选择任何差分对，请先勾选要应用的项');
+        eda.sys_Message.showToastMessage('未选择任何差分对，请先勾选要应用的项', ESYS_ToastMessageType.WARNING, 3000)
         return;
     }
     loading.value = true;
@@ -207,15 +207,15 @@ const applyDiffPairs = async () => {
                 if (succ) {
                     console.log(`创建差分对 ${pair.name} 成功`);
                 } else {
-                    eda.sys_Dialog.showInformationMessage(`创建差分对 ${pair.name} 失败`);
-                    console.error(`创建差分对 ${pair.name} 失败`);
+                    eda.sys_Message.showToastMessage(`创建差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
+                    console.log(`创建差分对 ${pair.name} 失败`);
                 }
             } catch (e) {
-                eda.sys_Dialog.showInformationMessage(`创建差分对 ${pair.name} 失败`);
-                console.error(`创建差分对 ${pair.name} 失败:`, e);
+                eda.sys_Message.showToastMessage(`创建差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
+                console.log(`创建差分对 ${pair.name} 失败:`, e);
             }
         }
-        eda.sys_Dialog.showInformationMessage('差分对已应用完成！');
+        eda.sys_Message.showToastMessage('差分对已应用完成！', ESYS_ToastMessageType.SUCCESS, 3000)
     } finally {
         loading.value = false;
     }
@@ -225,12 +225,20 @@ const applyDiffPairs = async () => {
 const refreshDiffPairs = async () => {
     loading.value = true;
     try {
-        const [now_nets, nowDiffPairsRaw]: [string[], any[]] = isEDA
-            ? await Promise.all([eda.pcb_Net.getAllNetsName(), eda.pcb_Drc.getAllDifferentialPairs()])
-            : [test, []];
-        totalNets.value = now_nets.length;
+        console.log('开始识别差分对...');
+        let nowNets: string[] = test;
+        let nowDiffPairsRaw: IPCB_DifferentialPairItem[] = [];
+        if (isEDA) {
+            nowNets = await eda.pcb_Net.getAllNetsName();
+            nowDiffPairsRaw = await eda.pcb_Drc.getAllDifferentialPairs();
+        }
+        console.log(typeof nowNets, nowNets);
+        console.log('获取网络数量:', nowNets.length);
+        console.log('获取现有差分对:', nowDiffPairsRaw);
+        totalNets.value = nowNets.length;
         const existingSimple = (nowDiffPairsRaw || []);
-        const res = identifyNewDiffPairs(now_nets, existingSimple as any);
+        const res = identifyNewDiffPairs(nowNets, existingSimple as any);
+        console.log('识别结果 - 正常对:', res.normalPairs?.length, '重名对:', res.duplicatedPairs?.length);
         duplicatedPairs.value = (res.duplicatedPairs || []);
         normalPairs.value = (res.normalPairs || []);
         existingPairs.value = (res.existingPairs || existingSimple || []);
@@ -239,8 +247,9 @@ const refreshDiffPairs = async () => {
         Object.keys(selectedMap).forEach((k) => {
             if (!currentIds.has(k)) delete selectedMap[k];
         });
+        console.log('差分对识别完成');
     } catch (e: any) {
-        console.error('识别差分对时出错:', e);
+        console.log('识别差分对时出错:', e);
     } finally {
         loading.value = false;
     }
@@ -255,15 +264,16 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
     try {
         const succ = await eda.pcb_Drc.deleteDifferentialPair(pair.name);
         if (!succ) {
-            eda.sys_Dialog.showInformationMessage(`删除差分对 ${pair.name} 失败`);
-            console.log(`删除差分对 ${pair.name} 成功`);
+            eda.sys_Message.showToastMessage(`删除差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
+            console.log(`删除差分对 ${pair.name} 失败`);
         }
     } catch (e: any) {
-        eda.sys_Dialog.showInformationMessage(`删除差分对 ${pair.name} 失败`);
-        console.error('删除差分对出错:', e);
+        eda.sys_Message.showToastMessage(`删除差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
+        console.log('删除差分对出错:', e);
     } finally {
         loading.value = false;
     }
+    eda.sys_Message.showToastMessage(`删除差分对 ${pair.name} 成功`, ESYS_ToastMessageType.SUCCESS, 3000);
     await refreshDiffPairs();
 };
 

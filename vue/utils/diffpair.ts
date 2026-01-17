@@ -1,3 +1,5 @@
+import type { DiffPairResult } from '../types/diffpair';
+
 export const test = [
 	'GND',
 	'VBUS1',
@@ -109,14 +111,6 @@ export const test = [
 	'$5N226',
 ];
 
-/**
- * 差分对识别结果接口
- */
-export interface DiffPairResult {
-	duplicatedPairs: IPCB_DifferentialPairItem[]; // 重名差分对列表
-	normalPairs: IPCB_DifferentialPairItem[]; // 正常差分对列表
-	existingPairs: IPCB_DifferentialPairItem[]; // 已经存在的差分对
-}
 /**
  * 增强版差分对识别工具
  * @param netList - 所有的网络名称列表

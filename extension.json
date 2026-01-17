@@ -26,7 +26,7 @@
 	"headerMenus": {
 		"home": [
 			{
-				"id": "EDA Buddy",
+				"id": "EDA Buddy HOME",
 				"title": "EDA Buddy",
 				"menuItems": [
 					{
@@ -43,11 +43,6 @@
 						"id": "Inductor",
 						"title": "Inductor...",
 						"registerFn": "inductor"
-					},
-					{
-						"id": "DiffPair",
-						"title": "DiffPair...",
-						"registerFn": "diffPair"
 					},
 					{
 						"id": "VDivision",
@@ -59,7 +54,7 @@
 		],
 		"sch": [
 			{
-				"id": "EDA Buddy",
+				"id": "EDA Buddy SCH",
 				"title": "EDA Buddy",
 				"menuItems": [
 					{
@@ -78,11 +73,6 @@
 						"registerFn": "inductor"
 					},
 					{
-						"id": "DiffPair",
-						"title": "DiffPair...",
-						"registerFn": "diffPair"
-					},
-					{
 						"id": "VDivision",
 						"title": "VDivision...",
 						"registerFn": "vDivision"
@@ -92,7 +82,7 @@
 		],
 		"pcb": [
 			{
-				"id": "EDA Buddy",
+				"id": "EDA Buddy PCB",
 				"title": "EDA Buddy",
 				"menuItems": [
 					{
