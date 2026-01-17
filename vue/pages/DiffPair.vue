@@ -1,16 +1,12 @@
 <template>
     <div class="diffpair-calculator calculator-base">
         <header class="calc-header">
-            <h3>差分对识别</h3>
+            <h3>差分对管理</h3>
         </header>
 
         <div class="columns">
             <div class="left">
                 <div class="calc-form">
-                    <div class="calc-field">
-                        <label>状态</label>
-                        <div>{{ loading ? '加载中...' : '已加载' }}</div>
-                    </div>
 
                     <div class="calc-field">
                         <label>总网络数量</label>
@@ -18,12 +14,17 @@
                     </div>
 
                     <div class="calc-field">
-                        <label>识别出的正常对</label>
+                        <label>可生成差分对</label>
                         <div>{{ normalPairs.length }}</div>
                     </div>
 
                     <div class="calc-field">
-                        <label>识别出的重名对</label>
+                        <label>疑似可生成差分对</label>
+                        <div>{{ passiveComponentPairs.length }}</div>
+                    </div>
+
+                    <div class="calc-field">
+                        <label>可生成重名差分对</label>
                         <div>{{ duplicatedPairs.length }}</div>
                     </div>
 
@@ -45,11 +46,11 @@
                     <div class="button-group">
                         <button class="refresh-btn" @click="refreshDiffPairs" :disabled="loading">
                             <span v-if="loading">识别中...</span>
-                            <span v-else>🔄 重新识别</span>
+                            <span v-else>重新识别</span>
                         </button>
                         <button class="apply-btn" @click="applyDiffPairs" :disabled="selectedCount === 0">
-                            <span>✓ 应用</span>
-                            <span v-if="selectedCount > 0">({{ selectedCount }})</span>
+                            <span>生成</span>
+                            <span>({{ selectedCount }})</span>
                         </button>
                     </div>
                 </div>
@@ -57,85 +58,49 @@
 
             <div class="right">
                 <div class="calc-result" style="padding-left:0;">
-                    <section style="margin-top:0;">
-                        <h4>差分对 ({{ normalPairs.length }})</h4>
-                        <table class="dp-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:36px">
-                                        <input type="checkbox" :checked="isAllSelected(normalPairs)"
-                                            @change="toggleSelectAll(normalPairs, $event)" />
-                                    </th>
-                                    <th>名称</th>
-                                    <th>正极</th>
-                                    <th>负极</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="p in normalPairs" :key="p.name">
-                                    <td>
-                                        <input type="checkbox" v-model="selectedMap[idOf(p)]" />
-                                    </td>
-                                    <td>{{ p.name }}</td>
-                                    <td>{{ p.positiveNet }}</td>
-                                    <td>{{ p.negativeNet }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </section>
+                    <DiffPairTable :title="`差分对 (${normalPairs.length})`" :data="normalPairs"
+                        :columns="normalTableColumns" :selected-map="selectedMap" :selectable="true"
+                        @update:selected-map="Object.assign(selectedMap, $event)" />
 
-                    <section style="margin-top:12px;">
-                        <h4>重名差分对 ({{ duplicatedPairs.length }})</h4>
-                        <table class="dp-table dp-table-dup">
-                            <thead>
-                                <tr>
-                                    <th style="width:36px">
-                                        <input type="checkbox" :checked="isAllSelected(duplicatedPairs)"
-                                            @change="toggleSelectAll(duplicatedPairs, $event)" />
-                                    </th>
-                                    <th>名称</th>
-                                    <th>正极</th>
-                                    <th>负极</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="p in duplicatedPairs" :key="p.name + '_dup'">
-                                    <td>
-                                        <input type="checkbox" v-model="selectedMap[idOf(p)]" />
-                                    </td>
-                                    <td>{{ p.name }}</td>
-                                    <td>{{ p.positiveNet }}</td>
-                                    <td>{{ p.negativeNet }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </section>
+                    <DiffPairTable :title="`疑似可生成差分对 (${passiveComponentPairs.length})`" :data="passiveComponentPairs"
+                        :columns="passiveTableColumns" :selectable="true" :selected-map="selectedMap"
+                        @update:selected-map="Object.assign(selectedMap, $event)" table-class="dp-table-passive">
+                        <template #cell-differentialPairName="{ item }">
+                            {{ item.differentialPairName }}
+                        </template>
+                        <template #cell-unpairedStatus="{ item }">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div v-if="item.unpairedPositiveDesignators?.length">
+                                    正: {{ item.unpairedPositiveDesignators.join(', ') }}
+                                </div>
+                                <div v-if="item.unpairedNegativeDesignators?.length">
+                                    负: {{ item.unpairedNegativeDesignators.join(', ') }}
+                                </div>
+                            </div>
+                        </template>
+                        <template #cell-unpairedNets="{ item }">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div v-if="item.unpairedPositiveNet">
+                                    正: {{ item.unpairedPositiveNet }}
+                                </div>
+                                <div v-if="item.unpairedNegativeNet">
+                                    负: {{ item.unpairedNegativeNet }}
+                                </div>
+                            </div>
+                        </template>
+                        <template #empty>未发现疑似可生成差分对</template>
+                    </DiffPairTable>
 
-                    <section style="margin-top:12px;">
-                        <h4>已存在差分对 ({{ existingPairs.length }})</h4>
-                        <table class="dp-table dp-table-exist">
-                            <thead>
-                                <tr>
-                                    <th style="width:36px">操作</th>
-                                    <th>名称</th>
-                                    <th>正极</th>
-                                    <th>负极</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="p in existingPairs" :key="p.name + '_ex'">
-                                    <td>
-                                        <button class="delete-btn" @click="deleteExisting(p)">删除</button>
-                                    </td>
-                                    <td>{{ p.name }}</td>
-                                    <td>{{ p.positiveNet }}</td>
-                                    <td>{{ p.negativeNet }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </section>
+                    <DiffPairTable :title="`重名差分对 (${duplicatedPairs.length})`" :data="duplicatedPairs"
+                        :columns="normalTableColumns" :selected-map="selectedMap" :selectable="true"
+                        @update:selected-map="Object.assign(selectedMap, $event)" />
+
+                    <DiffPairTable :title="`已存在差分对 (${existingPairs.length})`" :data="existingPairs"
+                        :columns="normalTableColumns" :actions="existingTableActions" table-class="dp-table-exist"
+                        @action="handleExistingAction" />
                 </div>
-                <div class="dup-note">说明：重名差分对表示名称与已有差分对或识别出的其他差分对冲突，但是网络不冲突，系统会在后面添加*号必然，建议检查或重命名后再应用。</div>
+                <div class="dup-note">
+                    说明：重名差分对表示名称与已有差分对或识别出的其他差分对冲突，但是网络不冲突，系统会在后面添加*号；检测到未配对器件表示在差分对网络上发现了连接到其他网络的器件，可生成新差分对。</div>
             </div>
         </div>
     </div>
@@ -143,10 +108,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, reactive, computed } from 'vue';
-import { identifyNewDiffPairs, test } from '../utils/diffpair';
+import { identifyNewDiffPairs, test, findSingleNetPassivesByPairs } from '../utils/diffpair';
 import { isEDA } from '../utils/utils';
+import { Component, EasyEDANetlist, PassiveComponentPair } from '../types/netlist';
+import DiffPairTable from '../components/DiffPairTable.vue';
+import type { TableColumn, TableAction } from '../components/DiffPairTable.vue';
 
-const loading = ref(true);
+const loading = ref(false);
 type IPCB_DifferentialPairItem = { name: string; positiveNet: string; negativeNet: string };
 
 const duplicatedPairs = ref<IPCB_DifferentialPairItem[]>([]);
@@ -156,25 +124,63 @@ const totalNets = ref(0);
 const selectedMap = reactive<Record<string, boolean>>({});
 
 const idOf = (p: IPCB_DifferentialPairItem) => `${p.positiveNet}||${p.negativeNet}`;
+const idOfPassive = (p: PassiveComponentPair) => `passive_${p.differentialPairName}`;
+
+// 表格配置
+const normalTableColumns: TableColumn[] = [
+    { key: 'name', label: '名称', width: '30%' },
+    { key: 'positiveNet', label: '正极', width: '35%' },
+    { key: 'negativeNet', label: '负极', width: '35%' },
+];
+
+const passiveTableColumns: TableColumn[] = [
+    { key: 'differentialPairName', label: '新建差分对名', width: '35%' },
+    { key: 'unpairedStatus', label: '参考器件位号', width: '25%' },
+    { key: 'unpairedNets', label: '未成对的网络', width: '40%' },
+];
+
+const passiveTableActions: TableAction[] = [];
+
+const existingTableActions: TableAction[] = [
+    { key: 'delete', text: '删除', class: 'delete-btn' },
+];
+
+
+// 成对匹配：对于每个差分对，找出分别连接到正/负网的被动元件，并尝试配对（优先按 Value 匹配，其次按 FootprintName）
+const passiveComponentPairs = ref<PassiveComponentPair[]>([]);
+
+const handleExistingAction = async (item: IPCB_DifferentialPairItem, action: TableAction) => {
+    if (action.key === 'delete') {
+        if (!isEDA) {
+            existingPairs.value = existingPairs.value.filter((p) => idOf(p) !== idOf(item));
+            return;
+        }
+        loading.value = true;
+        try {
+            const succ = await eda.pcb_Drc.deleteDifferentialPair(item.name);
+            if (!succ) {
+                eda.sys_Message.showToastMessage(`删除差分对 ${item.name} 失败`, ESYS_ToastMessageType.ERROR, 5);
+                console.log(`删除差分对 ${item.name} 失败`);
+            } else {
+                eda.sys_Message.showToastMessage(`删除差分对 ${item.name} 成功`, ESYS_ToastMessageType.SUCCESS, 5);
+            }
+        } catch (e: any) {
+            eda.sys_Message.showToastMessage(`删除差分对 ${item.name} 失败`, ESYS_ToastMessageType.ERROR, 5);
+            console.log('删除差分对出错:', e);
+        } finally {
+            loading.value = false;
+        }
+        await refreshDiffPairs();
+    }
+};
+
 
 const selectedCount = computed(() => {
-    const all = [...normalPairs.value, ...duplicatedPairs.value];
-    return all.filter((p) => !!selectedMap[idOf(p)]).length;
+    const normalAndDup = [...normalPairs.value, ...duplicatedPairs.value].filter((p) => !!selectedMap[idOf(p)]).length;
+    const passive = passiveComponentPairs.value.filter((p) => !!selectedMap[idOfPassive(p)]).length;
+    return normalAndDup + passive;
 });
 
-const isAllSelected = (list: IPCB_DifferentialPairItem[]) => {
-    if (!list || list.length === 0) return false;
-    return list.every((p) => !!selectedMap[idOf(p)]);
-};
-
-const toggleSelectAll = (list: IPCB_DifferentialPairItem[], checkedOrEvent: boolean | Event) => {
-    const checked = typeof checkedOrEvent === 'boolean'
-        ? checkedOrEvent
-        : ((checkedOrEvent?.target as HTMLInputElement | null)?.checked ?? false);
-    list.forEach((p) => {
-        selectedMap[idOf(p)] = checked;
-    });
-};
 
 watch(loading, (newVal) => {
     if (isEDA) {
@@ -193,29 +199,58 @@ onMounted(async () => {
 const applyDiffPairs = async () => {
     console.log('应用差分对:', normalPairs.value);
     if (!isEDA) return;
+
+    // 收集普通差分对
     const allCandidates = [...normalPairs.value, ...duplicatedPairs.value];
-    const selected = allCandidates.filter((p) => selectedMap[idOf(p)]);
-    if (selected.length === 0) {
-        eda.sys_Message.showToastMessage('未选择任何差分对，请先勾选要应用的项', ESYS_ToastMessageType.WARNING, 3000)
+    const selectedNormal = allCandidates.filter((p) => selectedMap[idOf(p)]);
+
+    // 收集被动器件差分对
+    const selectedPassive = passiveComponentPairs.value.filter((p) => selectedMap[idOfPassive(p)]);
+
+    if (selectedNormal.length === 0 && selectedPassive.length === 0) {
+        eda.sys_Message.showToastMessage('未选择任何差分对，请先勾选要应用的项', ESYS_ToastMessageType.WARNING, 5)
         return;
     }
+
     loading.value = true;
     try {
-        for (const pair of selected) {
+        // 生成普通差分对
+        for (const pair of selectedNormal) {
             try {
                 const succ = await eda.pcb_Drc.createDifferentialPair(pair.name, pair.positiveNet, pair.negativeNet);
                 if (succ) {
                     console.log(`创建差分对 ${pair.name} 成功`);
                 } else {
-                    eda.sys_Message.showToastMessage(`创建差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
+                    eda.sys_Message.showToastMessage(`创建差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 5);
                     console.log(`创建差分对 ${pair.name} 失败`);
                 }
             } catch (e) {
-                eda.sys_Message.showToastMessage(`创建差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
+                eda.sys_Message.showToastMessage(`创建差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 5);
                 console.log(`创建差分对 ${pair.name} 失败:`, e);
             }
         }
-        eda.sys_Message.showToastMessage('差分对已应用完成！', ESYS_ToastMessageType.SUCCESS, 3000)
+
+        // 生成被动器件差分对
+        for (const item of selectedPassive) {
+            try {
+                const succ = await eda.pcb_Drc.createDifferentialPair(
+                    item.differentialPairName,
+                    item.unpairedPositiveNet!,
+                    item.unpairedNegativeNet!
+                );
+                if (succ) {
+                    console.log(`创建差分对 ${item.differentialPairName} 成功`);
+                } else {
+                    eda.sys_Message.showToastMessage(`创建差分对 ${item.differentialPairName} 失败`, ESYS_ToastMessageType.ERROR, 5);
+                    console.log(`创建差分对 ${item.differentialPairName} 失败`);
+                }
+            } catch (e) {
+                eda.sys_Message.showToastMessage(`创建差分对 ${item.differentialPairName} 失败`, ESYS_ToastMessageType.ERROR, 5);
+                console.log(`创建差分对 ${item.differentialPairName} 失败:`, e);
+            }
+        }
+
+        eda.sys_Message.showToastMessage('差分对已应用完成！', ESYS_ToastMessageType.SUCCESS, 5)
     } finally {
         loading.value = false;
     }
@@ -228,53 +263,46 @@ const refreshDiffPairs = async () => {
         console.log('开始识别差分对...');
         let nowNets: string[] = test;
         let nowDiffPairsRaw: IPCB_DifferentialPairItem[] = [];
+        let netJson: EasyEDANetlist | null = null;
         if (isEDA) {
             nowNets = await eda.pcb_Net.getAllNetsName();
             nowDiffPairsRaw = await eda.pcb_Drc.getAllDifferentialPairs();
+            const netList = await eda.pcb_Net.getNetlist(ESYS_NetlistType.JLCEDA_PRO);
+            netJson = JSON.parse(netList) as EasyEDANetlist
         }
-        console.log(typeof nowNets, nowNets);
-        console.log('获取网络数量:', nowNets.length);
-        console.log('获取现有差分对:', nowDiffPairsRaw);
+        // console.log(typeof nowNets, nowNets);
+        // console.log('获取网络数量:', nowNets.length);
+        // console.log('获取现有差分对:', nowDiffPairsRaw);
         totalNets.value = nowNets.length;
         const existingSimple = (nowDiffPairsRaw || []);
         const res = identifyNewDiffPairs(nowNets, existingSimple as any);
-        console.log('识别结果 - 正常对:', res.normalPairs?.length, '重名对:', res.duplicatedPairs?.length);
+        // console.log('识别结果 - 正常对:', res.normalPairs?.length, '重名对:', res.duplicatedPairs?.length);
         duplicatedPairs.value = (res.duplicatedPairs || []);
         normalPairs.value = (res.normalPairs || []);
         existingPairs.value = (res.existingPairs || existingSimple || []);
 
+        if (isEDA) {
+            // 查找连接到已存在差分对网络的单端器件对
+            try {
+                passiveComponentPairs.value = findSingleNetPassivesByPairs(netJson!.components, existingPairs.value);
+                console.log('检测到的单端器件对:', passiveComponentPairs.value);
+            } catch (err) {
+                console.log('查找单端器件时出错:', err);
+            }
+        }
+
+
         const currentIds = new Set([...normalPairs.value, ...duplicatedPairs.value].map(idOf));
+        const currentPassiveIds = new Set(passiveComponentPairs.value.map(idOfPassive));
         Object.keys(selectedMap).forEach((k) => {
-            if (!currentIds.has(k)) delete selectedMap[k];
+            if (!currentIds.has(k) && !currentPassiveIds.has(k)) delete selectedMap[k];
         });
-        console.log('差分对识别完成');
+        // console.log('差分对识别完成');
     } catch (e: any) {
         console.log('识别差分对时出错:', e);
     } finally {
         loading.value = false;
     }
-};
-
-const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
-    if (!isEDA) {
-        existingPairs.value = existingPairs.value.filter((p) => idOf(p) !== idOf(pair));
-        return;
-    }
-    loading.value = true;
-    try {
-        const succ = await eda.pcb_Drc.deleteDifferentialPair(pair.name);
-        if (!succ) {
-            eda.sys_Message.showToastMessage(`删除差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
-            console.log(`删除差分对 ${pair.name} 失败`);
-        }
-    } catch (e: any) {
-        eda.sys_Message.showToastMessage(`删除差分对 ${pair.name} 失败`, ESYS_ToastMessageType.ERROR, 3000);
-        console.log('删除差分对出错:', e);
-    } finally {
-        loading.value = false;
-    }
-    eda.sys_Message.showToastMessage(`删除差分对 ${pair.name} 成功`, ESYS_ToastMessageType.SUCCESS, 3000);
-    await refreshDiffPairs();
 };
 
 </script>
@@ -325,111 +353,6 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
             font-weight: 500;
             font-size: 11px;
         }
-    }
-
-    h4 {
-        margin: 8px 0 6px 0;
-        font-size: 14px;
-        color: var(--calc-text);
-    }
-
-    .dp-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 8px;
-        font-size: 12px;
-        table-layout: fixed;
-    }
-
-    .dp-table th:nth-child(1),
-    .dp-table td:nth-child(1) {
-        width: 36px;
-        min-width: 36px;
-        max-width: 36px;
-        text-align: center;
-    }
-
-    .dp-table td:nth-child(1) {
-        overflow: visible;
-    }
-
-    .dp-table th:nth-child(2),
-    .dp-table td:nth-child(2) {
-        width: 30%;
-    }
-
-    .dp-table th:nth-child(3),
-    .dp-table td:nth-child(3),
-    .dp-table th:nth-child(4),
-    .dp-table td:nth-child(4) {
-        width: 35%;
-    }
-
-
-    .dp-table th input[type="checkbox"],
-    .dp-table td input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        margin: 0;
-        display: inline-block;
-        vertical-align: middle;
-        box-sizing: border-box;
-    }
-
-    .dp-table th,
-    .dp-table td {
-        border: 1px solid var(--calc-border);
-        padding: 6px 8px;
-        text-align: left;
-        max-width: 0;
-        position: relative;
-    }
-
-    .dp-table td {
-        overflow-x: auto;
-        overflow-y: hidden;
-        white-space: nowrap;
-
-        &::-webkit-scrollbar {
-            height: 4px;
-        }
-
-        &::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        &::-webkit-scrollbar-thumb {
-            background: var(--calc-border);
-            border-radius: 2px;
-        }
-
-        &::-webkit-scrollbar-thumb:hover {
-            background: var(--calc-muted);
-        }
-    }
-
-    .dp-table th {
-        font-weight: 600;
-        background: var(--calc-table-header);
-        color: var(--calc-text);
-    }
-
-    .dp-table tbody tr:nth-child(odd) {
-        background: var(--calc-table-row-odd);
-        color: var(--calc-text);
-    }
-
-    .dp-table tbody tr:hover {
-        background: var(--calc-row-hover);
-        color: var(--calc-text);
-    }
-
-    .dp-table-dup td {
-        color: var(--calc-error);
-    }
-
-    .dp-table-exist td {
-        color: var(--calc-muted);
     }
 
     .columns {
@@ -559,36 +482,6 @@ const deleteExisting = async (pair: IPCB_DifferentialPairItem) => {
         font-size: 12px;
         color: var(--calc-muted);
         padding: 8px 12px 0 0;
-    }
-
-    .delete-btn {
-        background: transparent;
-        border: 1px solid var(--calc-border);
-        color: var(--calc-text);
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 12px;
-        cursor: pointer;
-    }
-
-    .delete-btn:hover {
-        background: var(--calc-delete-hover-bg);
-        border-color: var(--calc-delete-hover-border);
-        color: var(--calc-error);
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .delete-btn {
-            border-color: var(--calc-card-border);
-            color: var(--calc-text);
-            background: transparent;
-        }
-
-        .delete-btn:hover {
-            background: var(--calc-delete-hover-bg);
-            border-color: var(--calc-delete-hover-border);
-            color: var(--calc-error);
-        }
     }
 }
 </style>

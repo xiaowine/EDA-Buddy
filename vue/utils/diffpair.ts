@@ -1,4 +1,12 @@
 import type { DiffPairResult } from '../types/diffpair';
+import type { Component, PassiveComponentPair, PassiveComponentWithPins } from '../types/netlist';
+
+// 差分对定义
+interface IPCB_DifferentialPairItem {
+	name: string;
+	positiveNet: string;
+	negativeNet: string;
+}
 
 export const test = [
 	'GND',
@@ -234,3 +242,123 @@ export function identifyNewDiffPairs(
 		existingPairs,
 	};
 }
+
+/**
+ * 查找连接到差分对网络的未配对被动器件
+ * 适用于USB、PCIe等场景，检测AC隔离电容/电阻的未配对情况
+ * @param components - EasyEDA 网表中的 components 对象
+ * @param existingPairs - 已存在的差分对列表
+ */
+export const findSingleNetPassivesByPairs = (
+	components: Record<string, Component>,
+	existingPairs: Array<IPCB_DifferentialPairItem>,
+): PassiveComponentPair[] => {
+	const result: PassiveComponentPair[] = [];
+	if (!existingPairs || existingPairs.length === 0) {
+		return result;
+	}
+
+	// 收集所有existingPairs的网络
+	const existingNets = new Set<string>();
+	existingPairs.forEach((p) => {
+		existingNets.add(p.positiveNet);
+		existingNets.add(p.negativeNet);
+	});
+
+	const allComponents = Object.values(components || {}) as Component[];
+
+	existingPairs.forEach((diffPair) => {
+		const posNet = diffPair.positiveNet;
+		const negNet = diffPair.negativeNet;
+		if (!posNet || !negNet) {
+			return;
+		}
+
+		// 在正网络上查找单端器件
+		const posPassives = filterSingleNetPassives(posNet, existingNets, allComponents);
+		// 在负网络上查找单端器件
+		const negPassives = filterSingleNetPassives(negNet, existingNets, allComponents);
+
+		// 如果任一网络有未配对的器件，就记录为一个条目
+		if (posPassives.length > 0 || negPassives.length > 0) {
+			// 收集所有未配对器件另一端连接的网络
+			const unpairedPosNets = new Set(posPassives.map((p) => p.otherNet) as string[]);
+			const unpairedNegNets = new Set(negPassives.map((p) => p.otherNet) as string[]);
+
+			// 收集器件位号
+			const posDesignators = posPassives.map((p) => p.component.props.Designator);
+			const negDesignators = negPassives.map((p) => p.component.props.Designator);
+
+			result.push({
+				differentialPairName: `${diffPair.name}*`,
+				existingPositiveNet: posNet,
+				existingNegativeNet: negNet,
+				unpairedPositiveNet: unpairedPosNets.size > 0 ? Array.from(unpairedPosNets)[0] : undefined,
+				unpairedNegativeNet: unpairedNegNets.size > 0 ? Array.from(unpairedNegNets)[0] : undefined,
+				unpairedPositiveDesignators: posDesignators.length > 0 ? posDesignators : undefined,
+				unpairedNegativeDesignators: negDesignators.length > 0 ? negDesignators : undefined,
+				matchReason: 'unpaired',
+			});
+		}
+	});
+
+	if (result.length > 0) {
+		console.log(`[findSingleNetPassivesByPairs] 完成，共找到 ${result.length} 个未配对网络`);
+	}
+
+	return result;
+};
+
+/**
+ * 筛选连接到指定网络的单端器件（电阻或电容）
+ * 条件：只有2个pin，其中1个连接到指定网络，另1个不连接到existingNets中的任何网络
+ */
+const filterSingleNetPassives = (netName: string, existingNets: Set<string>, allComponents: Component[]): PassiveComponentWithPins[] => {
+	const list: PassiveComponentWithPins[] = [];
+
+	allComponents.forEach((component) => {
+		const designator = component?.props?.Designator;
+
+		// 只查找电容或电阻（C或R开头）
+		if (!designator) return;
+		const firstChar = designator.trim().charAt(0).toUpperCase();
+		if (firstChar !== 'C' && firstChar !== 'R') return;
+
+		const pinInfoMap: Record<string, any> = component.pinInfoMap || {};
+		const totalPins = Object.values(pinInfoMap).length;
+
+		// 只处理2pin的器件
+		if (totalPins !== 2) {
+			return;
+		}
+
+		const pins = Object.values(pinInfoMap) as any[];
+		const connectedToNet = pins.filter((p) => p?.net === netName);
+		const otherPin = pins.find((p) => p?.net !== netName);
+
+		// 必须只有1个pin连接到指定网络
+		if (connectedToNet.length !== 1 || !otherPin) {
+			return;
+		}
+
+		const otherNetName = otherPin.net;
+
+		// 另一个pin必须有网络标签
+		if (!otherNetName) {
+			return;
+		}
+
+		// 另一个pin不能连接到existingNets中的任何网络
+		if (existingNets.has(otherNetName)) {
+			return;
+		}
+
+		list.push({
+			component,
+			pins: [connectedToNet[0].number || connectedToNet[0].name || ''],
+			otherNet: otherNetName, // 保存另一端的网络
+		});
+	});
+
+	return list;
+};
