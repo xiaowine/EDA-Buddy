@@ -60,7 +60,7 @@
                     <foreignObject x="130" y="22" width="60" height="32">
                         <div xmlns="http://www.w3.org/1999/xhtml">
                             <input type="number" v-model.number="vin" step="0.01" class="svg-input vin-input"
-                                :readonly="mode === 'reverse'" placeholder="12" />
+                                placeholder="12" />
                         </div>
                     </foreignObject>
                     <text x="195" y="42" font-size="12" fill="#3b82f6">V</text>
