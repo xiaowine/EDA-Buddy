@@ -120,6 +120,16 @@
                             </div>
 
                             <div class="form-row">
+                                <label class="form-label" for="i2cPullVoltage">上拉电压</label>
+                                <select id="i2cPullVoltage" class="calc-input compact" v-model="i2cPullVoltage">
+                                    <option value="VCC">VCC</option>
+                                    <option value="3.3V">3.3V</option>
+                                    <option value="3V3">3V3</option>
+                                    <option value="5V">5V</option>
+                                </select>
+                            </div>
+
+                            <div class="form-row">
                                 <label class="form-label" for="i2cNamePrefix">命名前缀</label>
                                 <input id="i2cNamePrefix" class="calc-input compact short" type="text"
                                     v-model="i2cNamePrefix" placeholder="默认无（留空）" />
@@ -141,9 +151,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { isEDA } from '../utils/utils';
+import { createResistor, zoom } from '../utils/oneclickplace';
+import { NetFLAG, NetPort, RESISTOR_LC_IDS, ResistorLcMap } from '../types/oneclickplace';
 
 // 放置类型列表（精简为项目常用）
 const placementTypes = [
@@ -167,9 +179,9 @@ const ledResValue = ref<string>('4.7k');
 const i2cResValue = ref<string>('4.7k');
 const i2cResPackage = ref<string>('0603');
 const i2cNamePrefix = ref<string>('');
+const i2cPullVoltage = ref<string>('3.3V');
 
-// 提示信息已移除（在 UI 中不显示结果提示）
-
+const loading = ref(false);
 /**
  * 验证输入
  */
@@ -188,6 +200,7 @@ const validateInputs = computed(() => {
     if (selectedPlacementType.value === 'i2c') {
         if (!i2cResValue.value) return '请选择 I2C 电阻阻值';
         if (!i2cResPackage.value) return '请选择 I2C 电阻封装';
+        if (!i2cPullVoltage.value) return '请选择 I2C 上拉电压';
     }
     return '';
 });
@@ -195,7 +208,7 @@ const validateInputs = computed(() => {
 /**
  * 处理放置操作
  */
-const handlePlacement = () => {
+const handlePlacement = async () => {
     const error = validateInputs.value;
     if (error) {
         console.error('验证错误:', error);
@@ -229,10 +242,59 @@ const handlePlacement = () => {
             i2cResValue: i2cResValue.value,
             i2cResPackage: i2cResPackage.value,
             i2cNamePrefix: i2cNamePrefix.value || undefined,
+            i2cPullVoltage: i2cPullVoltage.value,
         }),
     };
 
     console.log('放置参数:', placementData);
+    if (!isEDA) return;
+
+
+    loading.value = true;
+
+    const libraryUuid = await eda.lib_LibrariesList.getSystemLibraryUuid();
+    if (libraryUuid) {
+        switch (selectedPlacementType.value) {
+            case 'typec': {
+                // TODO: implement Type-C placement
+                break;
+            }
+            case 'led': {
+                // TODO: implement LED placement
+                break;
+            }
+            case 'i2c': {
+                const pkg = placementData.i2cResPackage! as keyof ResistorLcMap;
+                const val = placementData.i2cResValue! as keyof ResistorLcMap[keyof ResistorLcMap];
+                const id = (RESISTOR_LC_IDS as ResistorLcMap)[pkg][val];
+                const resistors = await Promise.all([
+                    createResistor(id, libraryUuid, -50, -50, 0, [
+                        { name: `${i2cNamePrefix.value}SDA`, type: NetPort.IN },
+                        { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
+                    ]),
+                    createResistor(id, libraryUuid, -50, -100, 0, [
+                        { name: `${i2cNamePrefix.value}SCL`, type: NetPort.IN },
+                        { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
+                    ]),
+                ]);
+                for (const res of resistors) {
+                    if (!res) {
+                        console.error('I2C 电阻放置失败');
+                        eda.sys_Message.showToastMessage('I2C 电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
+                        loading.value = false;
+                        return;
+                    }
+                }
+                zoom(resistors.map(r => r!.getState_PrimitiveId()));
+                console.log('I2C 电阻放置完成');
+                break;
+            }
+        }
+    } else {
+        console.error('无法获取系统库 UUID，放置失败');
+    }
+
+    loading.value = false;
 };
 
 /**
@@ -249,7 +311,22 @@ const handleReset = () => {
     i2cResValue.value = '4.7k';
     i2cResPackage.value = '0603';
     i2cNamePrefix.value = '';
+    i2cPullVoltage.value = '3.3V';
 };
+
+watch(
+    loading,
+    (newVal) => {
+        if (isEDA) {
+            if (newVal) {
+                eda.sys_LoadingAndProgressBar.showLoading();
+            } else {
+                eda.sys_LoadingAndProgressBar.destroyLoading();
+            }
+        }
+    },
+    { flush: 'sync' },
+);
 </script>
 
 <style scoped lang="scss">
