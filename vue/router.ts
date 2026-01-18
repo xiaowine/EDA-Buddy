@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 
 import DiffPair from './pages/DiffPair.vue';
 import Inductor from './pages/Inductor.vue';
+import OneClickPlace from './pages/OneClickPlace.vue';
 import VDivision from './pages/VDivision.vue';
 import Via from './pages/Via.vue';
 import Wire from './pages/Wire.vue';
@@ -33,6 +34,11 @@ const router = createRouter({
 			path: '/VDivision',
 			name: 'VDivision',
 			component: VDivision,
+		},
+		{
+			path: '/OneClickPlace',
+			name: 'OneClickPlace',
+			component: OneClickPlace,
 		},
 		{
 			path: '/',

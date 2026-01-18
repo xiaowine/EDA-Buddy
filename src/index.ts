@@ -25,3 +25,7 @@ export function diffPair(): void {
 export function vDivision(): void {
 	openPage('VDivision', 633.4, 413.4);
 }
+
+export function oneClickPlace(): void {
+	openPage('OneClickPlace', 360, 360);
+}

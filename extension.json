@@ -48,6 +48,11 @@
 						"id": "VDivision",
 						"title": "VDivision...",
 						"registerFn": "vDivision"
+					},
+					{
+						"id": "OneClickPlace",
+						"title": "OneClickPlace...",
+						"registerFn": "oneClickPlace"
 					}
 				]
 			}
@@ -76,6 +81,11 @@
 						"id": "VDivision",
 						"title": "VDivision...",
 						"registerFn": "vDivision"
+					},
+					{
+						"id": "OneClickPlace",
+						"title": "OneClickPlace...",
+						"registerFn": "oneClickPlace"
 					}
 				]
 			}
@@ -109,6 +119,11 @@
 						"id": "VDivision",
 						"title": "VDivision...",
 						"registerFn": "vDivision"
+					},
+					{
+						"id": "OneClickPlace",
+						"title": "OneClickPlace...",
+						"registerFn": "oneClickPlace"
 					}
 				]
 			}
