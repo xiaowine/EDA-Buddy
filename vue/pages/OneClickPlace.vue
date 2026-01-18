@@ -71,8 +71,8 @@
                             <div class="form-row">
                                 <label class="form-label" for="ledResPosition">限流电阻位置</label>
                                 <select id="ledResPosition" class="calc-input compact" v-model="ledResPosition">
-                                    <option value="上">上</option>
-                                    <option value="下">下</option>
+                                    <option :value="0">上</option>
+                                    <option :value="1">下</option>
                                 </select>
                             </div>
 
@@ -154,8 +154,11 @@
 import { computed, ref, watch } from 'vue';
 
 import { isEDA } from '../utils/utils';
-import { createResistor, zoom } from '../utils/oneclickplace';
-import { NetFLAG, NetPort, RESISTOR_LC_IDS, ResistorLcMap } from '../types/oneclickplace';
+import { placeTwoEndedComponent, zoom, zoomToBBoxes } from '../utils/oneclickplace';
+import type { PlaceTwoEndedResult } from '../utils/oneclickplace';
+import { NetFLAG, NetPort } from '../types/oneclickplace';
+import { getLcId, ResistorFootprint, ResistorValue } from '../types/resistors';
+import { getLedId, LedColor } from '../types/leds';
 
 // 放置类型列表（精简为项目常用）
 const placementTypes = [
@@ -171,8 +174,8 @@ const needCCRes = ref<boolean>(true);
 const ccResPackage = ref<string>('0603');
 
 // LED 特定参数
-const ledColor = ref<string>('red');
-const ledResPosition = ref<string>('下'); // 上 / 下
+const ledColor = ref<LedColor>('white');
+const ledResPosition = ref<number>(0); // 上 / 下
 const ledResPackage = ref<string>('0603');
 const ledResValue = ref<string>('4.7k');
 // I2C 电阻参数
@@ -205,6 +208,120 @@ const validateInputs = computed(() => {
     return '';
 });
 
+const led = async (libraryUuid: string): Promise<boolean> => {
+    try {
+        const pkg = ledResPackage.value! as ResistorFootprint;
+        const val = ledResValue.value! as ResistorValue;
+        const resId = getLcId(pkg, val);
+        const ledColorStr = ledColor.value! as LedColor;
+        const ledId = getLedId(pkg, ledColorStr);
+        if (!resId || !ledId) {
+            console.error('找不到对应的 LED 或限流电阻封装或阻值', pkg, val);
+            eda.sys_Message.showToastMessage('找不到对应的 LED 或限流电阻封装或阻值', ESYS_ToastMessageType.ERROR, 5);
+            return false;
+        }
+
+        const placedLed = await placeTwoEndedComponent(ledId, libraryUuid, -50, -60, -90, null) as PlaceTwoEndedResult | null;
+        if (!placedLed?.component) {
+            console.error('LED 放置失败');
+            eda.sys_Message.showToastMessage('LED 放置失败', ESYS_ToastMessageType.ERROR, 5);
+            return false;
+        }
+
+        const placedResistor = await placeTwoEndedComponent(resId, libraryUuid, -50, -70, 90, null) as PlaceTwoEndedResult | null;
+        if (!placedResistor?.component) {
+            console.error('LED 限流电阻放置失败');
+            eda.sys_Message.showToastMessage('LED 限流电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
+            return false;
+        }
+
+        // 选择要对齐的两个引脚：
+        // - 当 ledResPosition === 0（电阻在上方）时，电阻的下端（最大 y）对齐到 LED 的上端（最小 y）
+        // - 当 ledResPosition === 1（电阻在下方）时，电阻的上端（最小 y）对齐到 LED 的下端（最大 y）
+        const ledPins = placedLed.pins || [];
+        const resPins = placedResistor.pins || [];
+        if (!ledPins.length || !resPins.length) {
+            console.error('组件引脚信息不完整，无法对齐');
+            eda.sys_Message.showToastMessage('组件引脚信息不完整，无法对齐', ESYS_ToastMessageType.ERROR, 5);
+            return false;
+        }
+
+        // NOTE: 这里将分支反转以修正 UI 选择与实际行为相反的问题。
+        // 当 ledResPosition === 0（UI 显示“上”）时，实际按“下”处理；当 === 1（UI 显示“下”）时，按“上”处理。
+        const ledPin = ledResPosition.value === 1
+            ? ledPins.reduce((p, c) => (p.y <= c.y ? p : c)) // LED 上端（最小 y）
+            : ledPins.reduce((p, c) => (p.y >= c.y ? p : c)); // LED 下端（最大 y）
+
+        const resPin = ledResPosition.value === 1
+            ? resPins.reduce((p, c) => (p.y >= c.y ? p : c)) // 电阻下端（最大 y）
+            : resPins.reduce((p, c) => (p.y <= c.y ? p : c)); // 电阻上端（最小 y）
+
+        const baseResX = placedResistor.component.getState_X();
+        const baseResY = placedResistor.component.getState_Y();
+
+        const newX = baseResX + (ledPin.x - resPin.x);
+        const newY = baseResY + (ledPin.y - resPin.y);
+
+        // 移动电阻到对齐位置
+        await eda.sch_PrimitiveComponent.modify(placedResistor.component.getState_PrimitiveId(), {
+            ...placedResistor.component,
+            x: newX,
+            y: newY,
+        },);
+
+        // 计算移动后的电阻引脚位置（用于连线）
+        const deltaX = newX - baseResX;
+        const deltaY = newY - baseResY;
+        const movedResPinX = resPin.x + deltaX;
+        const movedResPinY = resPin.y + deltaY;
+
+        // 创建一条从 LED 引脚到移动后电阻引脚的连线（比零长度连线更直观）
+        await eda.sch_PrimitiveWire.create([ledPin.x, ledPin.y, movedResPinX, movedResPinY]);
+
+        zoom([placedResistor.component.getState_PrimitiveId(), placedLed.component.getState_PrimitiveId()]);
+        eda.sys_Message.showToastMessage('LED 放置完成', ESYS_ToastMessageType.SUCCESS, 5);
+        return true;
+    } catch (err) {
+        console.error('LED 放置时出错', err);
+        eda.sys_Message.showToastMessage('LED 放置时发生错误', ESYS_ToastMessageType.ERROR, 5);
+        return false;
+    }
+}
+
+const i2c = async (libraryUuid: string) => {
+    const pkg = i2cResPackage.value! as ResistorFootprint;
+    const val = i2cResValue.value! as ResistorValue;
+    const id = getLcId(pkg, val);
+    if (!id) {
+        console.error('I2C 电阻库 ID 未找到', pkg, val);
+        eda.sys_Message.showToastMessage('找不到对应的电阻封装或阻值', ESYS_ToastMessageType.ERROR, 5);
+        loading.value = false;
+        return;
+    }
+    const resistors = await Promise.all([
+        placeTwoEndedComponent(id, libraryUuid, -50, -50, 0, [
+            { name: `${i2cNamePrefix.value}SDA`, type: NetPort.IN },
+            { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
+        ]),
+        placeTwoEndedComponent(id, libraryUuid, -50, -100, 0, [
+            { name: `${i2cNamePrefix.value}SCL`, type: NetPort.IN },
+            { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
+        ]),
+    ]) as Array<PlaceTwoEndedResult | null>;
+    for (const res of resistors) {
+        if (!res || !res.component) {
+            console.error('I2C 电阻放置失败');
+            eda.sys_Message.showToastMessage('I2C 电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
+            loading.value = false;
+            return;
+        }
+    }
+
+    zoomToBBoxes(resistors.map(r => r!.bbox!));
+    eda.sys_Message.showToastMessage('I2C 电阻放置完成', ESYS_ToastMessageType.SUCCESS, 5);
+    console.log('I2C 电阻放置完成');
+}
+
 /**
  * 处理放置操作
  */
@@ -226,27 +343,6 @@ const handlePlacement = async () => {
         }
     }
 
-    const placementData = {
-        type: selectedPlacementType.value,
-        ...(selectedPlacementType.value === 'typec' && {
-            needCCRes: needCCRes.value,
-            ccResPackage: ccResPackage.value,
-        }),
-        ...(selectedPlacementType.value === 'led' && {
-            ledColor: ledColor.value,
-            ledResPosition: ledResPosition.value,
-            ledResPackage: ledResPackage.value,
-            ledResValue: ledResValue.value,
-        }),
-        ...(selectedPlacementType.value === 'i2c' && {
-            i2cResValue: i2cResValue.value,
-            i2cResPackage: i2cResPackage.value,
-            i2cNamePrefix: i2cNamePrefix.value || undefined,
-            i2cPullVoltage: i2cPullVoltage.value,
-        }),
-    };
-
-    console.log('放置参数:', placementData);
     if (!isEDA) return;
 
 
@@ -260,33 +356,11 @@ const handlePlacement = async () => {
                 break;
             }
             case 'led': {
-                // TODO: implement LED placement
+                await led(libraryUuid);
                 break;
             }
             case 'i2c': {
-                const pkg = placementData.i2cResPackage! as keyof ResistorLcMap;
-                const val = placementData.i2cResValue! as keyof ResistorLcMap[keyof ResistorLcMap];
-                const id = (RESISTOR_LC_IDS as ResistorLcMap)[pkg][val];
-                const resistors = await Promise.all([
-                    createResistor(id, libraryUuid, -50, -50, 0, [
-                        { name: `${i2cNamePrefix.value}SDA`, type: NetPort.IN },
-                        { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
-                    ]),
-                    createResistor(id, libraryUuid, -50, -100, 0, [
-                        { name: `${i2cNamePrefix.value}SCL`, type: NetPort.IN },
-                        { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
-                    ]),
-                ]);
-                for (const res of resistors) {
-                    if (!res) {
-                        console.error('I2C 电阻放置失败');
-                        eda.sys_Message.showToastMessage('I2C 电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
-                        loading.value = false;
-                        return;
-                    }
-                }
-                zoom(resistors.map(r => r!.getState_PrimitiveId()));
-                console.log('I2C 电阻放置完成');
+                await i2c(libraryUuid);
                 break;
             }
         }
@@ -305,7 +379,7 @@ const handleReset = () => {
     needCCRes.value = true;
     ccResPackage.value = '0603';
     ledColor.value = 'red';
-    ledResPosition.value = '下';
+    ledResPosition.value = 0;
     ledResPackage.value = '0603';
     ledResValue.value = '4.7k';
     i2cResValue.value = '4.7k';
