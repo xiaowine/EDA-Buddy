@@ -3,8 +3,9 @@ import { NetPort } from '../types/oneclickplace';
 
 export interface PlaceTwoEndedResult {
 	component: ISCH_PrimitiveComponent | ISCH_PrimitiveComponent_2 | null;
-	pins: { x: number; y: number; name: string }[];
+	pins: { x: number; y: number; name: string; rotation: number }[];
 	bbox: { minX: number; minY: number; maxX: number; maxY: number } | null;
+	primitiveIds: string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -19,18 +20,20 @@ export const placeTwoEndedComponent = async (
 	const devices = await eda.lib_Device.getByLcscIds([lcscId], undefined, false);
 	if (devices.length !== 1) {
 		console.error(`找不到电阻 LCSC ID：${lcscId}`);
-		return { component: null, pins: [], bbox: null };
+		return { component: null, pins: [], bbox: null, primitiveIds: [] };
 	}
 	const uuid = devices[0].uuid;
 
 	const component = await eda.sch_PrimitiveComponent.create({ libraryUuid, uuid }, x, y, undefined, rotation);
 	if (!component) {
 		console.error(`创建器件失败，LCSC ID：${lcscId}`);
-		return { component: null, pins: [], bbox: null };
+		return { component: null, pins: [], bbox: null, primitiveIds: [] };
 	}
 
 	const primitiveId = component.getState_PrimitiveId();
 	const pins = (await eda.sch_PrimitiveComponent.getAllPinsByPrimitiveId(primitiveId)) ?? [];
+	const primitiveIds: string[] = [];
+	if (primitiveId) primitiveIds.push(primitiveId);
 
 	// 要求 net_pins 和 pins 数量相等且为 2，否则直接返回（前提是net_pins不是null，如果是null则忽略）
 	// if (!(net_pins && net_pins!.length === pins.length && pins.length === 2)) {
@@ -51,26 +54,30 @@ export const placeTwoEndedComponent = async (
 					const t = net_pins[idx].type;
 					const isPort = t ? Object.values(NetPort).includes(t as NetPort) : false;
 					if (isPort) {
-						await eda.sch_PrimitiveComponent.createNetPort(t as NetPort, labelName, px, py, rot);
+						const created = await eda.sch_PrimitiveComponent.createNetPort(t as NetPort, labelName, px, py, rot);
+						const createdId = created!.getState_PrimitiveId()!;
+						primitiveIds.push(createdId);
 					} else {
-						await eda.sch_PrimitiveComponent.createNetFlag(t as NetFLAG, labelName, px, py, rot);
+						const created = await eda.sch_PrimitiveComponent.createNetFlag(t as NetFLAG, labelName, px, py, rot);
+						const createdId = created!.getState_PrimitiveId()!;
+						primitiveIds.push(createdId);
 					}
 
 					await eda.sch_PrimitiveWire.create([px, py, px, py]);
 					console.info(`已创建标签网：${labelName}，位置：(${px}, ${py})，旋转：${rot}`);
-					return { x: px, y: py, name: labelName };
+					return { x: px, y: py, name: labelName, rotation: rot };
 				} else {
-					return { x: px, y: py, name: pinName };
+					return { x: px, y: py, name: pinName, rotation: pin.getState_Rotation() };
 				}
 			} catch (err) {
 				console.error(`创建标签网失败，索引：${idx}，lcscId：${lcscId}`, err);
-				return { x: 0, y: 0, name: '' };
+				return { x: 0, y: 0, name: '', rotation: 0 };
 			}
 		}),
 	);
 
-	const bbox = await eda.sch_Primitive.getPrimitivesBBox([primitiveId]);
-	return { component, pins: pinsInfo, bbox: bbox ?? null };
+	const bbox = await eda.sch_Primitive.getPrimitivesBBox(primitiveIds);
+	return { component, pins: pinsInfo, bbox: bbox ?? null, primitiveIds: primitiveIds };
 };
 
 export const zoom = async (primitiveIds: string[]) => {

@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { isEDA } from '../utils/utils';
 import { placeTwoEndedComponent, zoom, zoomToBBoxes } from '../utils/oneclickplace';
@@ -208,7 +208,79 @@ const validateInputs = computed(() => {
     return '';
 });
 
-const led = async (libraryUuid: string): Promise<boolean> => {
+const typec = async (libraryUuid: string, position: { x: number; y: number; }): Promise<boolean> => {
+    try {
+        if (needCCRes.value) {
+            const pkg = ccResPackage.value! as ResistorFootprint;
+            const id = getLcId(pkg, '5.1k');
+            if (!id) {
+                console.error('CC 电阻库 ID 未找到', pkg);
+                eda.sys_Message.showToastMessage('找不到对应的 CC 电阻封装或阻值', ESYS_ToastMessageType.ERROR, 5);
+                return false;
+            }
+
+            const typecRes = await placeTwoEndedComponent("C2765186", libraryUuid, position.x, position.y, 0, null);
+            if (!typecRes || !typecRes.component) {
+                console.error('Type-C 接口放置失败');
+                eda.sys_Message.showToastMessage('Type-C 接口放置失败', ESYS_ToastMessageType.ERROR, 5);
+                return false;
+            }
+            const primitiveIds = [typecRes.component.getState_PrimitiveId()];
+            typecRes.pins.forEach(async pin => {
+                let pinName = pin.name;
+                if (pinName === 'SHELL') {
+                    pinName = 'GND';
+                } else if (pinName?.includes('SBU')) {
+                    return;
+                } else if (pinName?.includes('DP')) {
+                    pinName = 'DP';
+                } else if (pinName?.includes('DN')) {
+                    pinName = 'DM';
+                }
+                console.log('Processing pin:', pinName);
+                const x = pin.x;
+                const y = pin.y;
+                const rotation = 180 - pin.rotation;
+
+                const [net, line] = await Promise.all([
+                    eda.sch_PrimitiveComponent.createNetPort('IN', pinName, x, y, rotation),
+                    eda.sch_PrimitiveWire.create([x, y, x, y]),
+                ]);
+                const netPrimitiveId = net?.getState_PrimitiveId();
+                if (netPrimitiveId) {
+                    primitiveIds.push(netPrimitiveId);
+                }
+            });
+
+            const placedResistor1 = await placeTwoEndedComponent(id, libraryUuid, position.x, position.y - 100, 0, [
+                { name: 'CC1', type: NetPort.IN },
+                { name: 'GND', type: NetFLAG.GROUND },
+            ]) as PlaceTwoEndedResult | null;
+            const placedResistor2 = await placeTwoEndedComponent(id, libraryUuid, position.x, position.y - 150, 0, [
+                { name: 'CC2', type: NetPort.IN },
+                { name: 'GND', type: NetFLAG.GROUND },
+            ]) as PlaceTwoEndedResult | null;
+            if (!placedResistor1 || !placedResistor1.component || !placedResistor2 || !placedResistor2.component) {
+                console.error('CC 电阻放置失败');
+                eda.sys_Message.showToastMessage('CC 电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
+                return false;
+            }
+
+            // zoom([placedResistor.component.getState_PrimitiveId()]);
+            eda.sch_SelectControl.doSelectPrimitives([...placedResistor1.primitiveIds, ...placedResistor2.primitiveIds, ...primitiveIds]);
+            eda.sys_Message.showToastMessage('Type-C CC 电阻放置完成', ESYS_ToastMessageType.SUCCESS, 3);
+            console.log('Type-C CC 电阻放置完成');
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.error('Type-C 放置时出错', err);
+        eda.sys_Message.showToastMessage('Type-C 放置时发生错误', ESYS_ToastMessageType.ERROR, 5);
+        return false;
+    }
+};
+
+const led = async (libraryUuid: string, position: { x: number; y: number; }): Promise<boolean> => {
     try {
         const pkg = ledResPackage.value! as ResistorFootprint;
         const val = ledResValue.value! as ResistorValue;
@@ -221,14 +293,14 @@ const led = async (libraryUuid: string): Promise<boolean> => {
             return false;
         }
 
-        const placedLed = await placeTwoEndedComponent(ledId, libraryUuid, -50, -60, -90, null) as PlaceTwoEndedResult | null;
+        const placedLed = await placeTwoEndedComponent(ledId, libraryUuid, position.x, position.y, -90, null) as PlaceTwoEndedResult | null;
         if (!placedLed?.component) {
             console.error('LED 放置失败');
             eda.sys_Message.showToastMessage('LED 放置失败', ESYS_ToastMessageType.ERROR, 5);
             return false;
         }
 
-        const placedResistor = await placeTwoEndedComponent(resId, libraryUuid, -50, -70, 90, null) as PlaceTwoEndedResult | null;
+        const placedResistor = await placeTwoEndedComponent(resId, libraryUuid, -10000, -10000, 90, null) as PlaceTwoEndedResult | null;
         if (!placedResistor?.component) {
             console.error('LED 限流电阻放置失败');
             eda.sys_Message.showToastMessage('LED 限流电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
@@ -278,8 +350,10 @@ const led = async (libraryUuid: string): Promise<boolean> => {
         // 创建一条从 LED 引脚到移动后电阻引脚的连线（比零长度连线更直观）
         await eda.sch_PrimitiveWire.create([ledPin.x, ledPin.y, movedResPinX, movedResPinY]);
 
-        zoom([placedResistor.component.getState_PrimitiveId(), placedLed.component.getState_PrimitiveId()]);
-        eda.sys_Message.showToastMessage('LED 放置完成', ESYS_ToastMessageType.SUCCESS, 5);
+        // zoom([placedResistor.component.getState_PrimitiveId(), placedLed.component.getState_PrimitiveId()]);
+
+        eda.sch_SelectControl.doSelectPrimitives([...placedResistor.primitiveIds, ...placedLed.primitiveIds]);
+        eda.sys_Message.showToastMessage('LED 放置完成', ESYS_ToastMessageType.SUCCESS, 3);
         return true;
     } catch (err) {
         console.error('LED 放置时出错', err);
@@ -288,22 +362,21 @@ const led = async (libraryUuid: string): Promise<boolean> => {
     }
 }
 
-const i2c = async (libraryUuid: string) => {
+const i2c = async (libraryUuid: string, position: { x: number; y: number; }): Promise<boolean> => {
     const pkg = i2cResPackage.value! as ResistorFootprint;
     const val = i2cResValue.value! as ResistorValue;
     const id = getLcId(pkg, val);
     if (!id) {
         console.error('I2C 电阻库 ID 未找到', pkg, val);
         eda.sys_Message.showToastMessage('找不到对应的电阻封装或阻值', ESYS_ToastMessageType.ERROR, 5);
-        loading.value = false;
-        return;
+        return false;
     }
     const resistors = await Promise.all([
-        placeTwoEndedComponent(id, libraryUuid, -50, -50, 0, [
+        placeTwoEndedComponent(id, libraryUuid, position.x, position.y, 0, [
             { name: `${i2cNamePrefix.value}SDA`, type: NetPort.IN },
             { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
         ]),
-        placeTwoEndedComponent(id, libraryUuid, -50, -100, 0, [
+        placeTwoEndedComponent(id, libraryUuid, position.x, position.y - 50, 0, [
             { name: `${i2cNamePrefix.value}SCL`, type: NetPort.IN },
             { name: `${i2cPullVoltage.value}`, type: NetFLAG.POWER },
         ]),
@@ -312,14 +385,15 @@ const i2c = async (libraryUuid: string) => {
         if (!res || !res.component) {
             console.error('I2C 电阻放置失败');
             eda.sys_Message.showToastMessage('I2C 电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
-            loading.value = false;
-            return;
+            return false;
         }
     }
 
-    zoomToBBoxes(resistors.map(r => r!.bbox!));
-    eda.sys_Message.showToastMessage('I2C 电阻放置完成', ESYS_ToastMessageType.SUCCESS, 5);
+    // zoomToBBoxes(resistors.map(r => r!.bbox!));
+    eda.sch_SelectControl.doSelectPrimitives(resistors.flatMap(r => r!.primitiveIds));
+    eda.sys_Message.showToastMessage('I2C 电阻放置完成', ESYS_ToastMessageType.SUCCESS, 3);
     console.log('I2C 电阻放置完成');
+    return true;
 }
 
 /**
@@ -345,30 +419,40 @@ const handlePlacement = async () => {
 
     if (!isEDA) return;
 
+    await eda.sys_IFrame.closeIFrame('OneClickPlace');
+    eda.sys_Message.showToastMessage('请在原理图上左键点击选择放置位置，右键取消放置', ESYS_ToastMessageType.INFO, 5);
+    eda.sch_Event.addMouseEventListener("OneClickPlace", 'all', async (eventType: ESCH_MouseEventType) => {
+        console.log("mouse event", eventType);
+        if (eventType === ESCH_MouseEventType.SELECTED) {
+            loading.value = true;
+            const libraryUuid = await eda.lib_LibrariesList.getSystemLibraryUuid();
+            const position = await eda.sch_SelectControl.getCurrentMousePosition();
+            if (libraryUuid && position) {
+                switch (selectedPlacementType.value) {
+                    case 'typec': {
+                        await typec(libraryUuid, position);
+                        break;
+                    }
+                    case 'led': {
+                        await led(libraryUuid, position);
+                        break;
+                    }
+                    case 'i2c': {
+                        await i2c(libraryUuid, position);
+                        break;
+                    }
+                }
+            } else {
+                console.error('无法获取系统库 UUID，放置失败');
+            }
 
-    loading.value = true;
-
-    const libraryUuid = await eda.lib_LibrariesList.getSystemLibraryUuid();
-    if (libraryUuid) {
-        switch (selectedPlacementType.value) {
-            case 'typec': {
-                // TODO: implement Type-C placement
-                break;
-            }
-            case 'led': {
-                await led(libraryUuid);
-                break;
-            }
-            case 'i2c': {
-                await i2c(libraryUuid);
-                break;
-            }
+            loading.value = false;
+        } else if (eventType === ESCH_MouseEventType.CLEAR_SELECTED) {
+            eda.sys_Message.showToastMessage('放置已取消', ESYS_ToastMessageType.INFO, 3);
         }
-    } else {
-        console.error('无法获取系统库 UUID，放置失败');
-    }
+    }, true);
 
-    loading.value = false;
+
 };
 
 /**
@@ -401,6 +485,10 @@ watch(
     },
     { flush: 'sync' },
 );
+
+onMounted(() => {
+    eda.sch_Event.removeEventListener("OneClickPlace");
+});
 </script>
 
 <style scoped lang="scss">

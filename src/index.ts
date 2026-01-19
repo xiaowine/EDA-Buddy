@@ -3,9 +3,12 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function activate(status?: 'onStartupFinished', arg?: string): void {}
 
-const openPage = (name: string, width: number, height: number) => {
-	eda.sys_Storage.setExtensionUserConfig('page', name);
-	eda.sys_IFrame.openIFrame('/vue-dist/index.html', width, height);
+const openPage = async (name: string, width: number, height: number) => {
+	console.log('Open Page:', name, width, height);
+	const config = await eda.sys_Storage.setExtensionAllUserConfigs({ 'page123': name });
+	if (config) {
+		eda.sys_IFrame.openIFrame('/vue-dist/index.html', width, height, name);
+	}
 };
 
 export function via(): void {

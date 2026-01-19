@@ -4,12 +4,11 @@ import { onMounted } from 'vue';
 import router from './router';
 import { isEDA } from './utils/utils';
 
-onMounted(() => {
+onMounted(async () => {
 	if (isEDA) {
-		var page = eda.sys_Storage.getExtensionUserConfig('page');
+		var page = eda.sys_Storage.getExtensionAllUserConfigs()['page123'];
 		if (typeof page === 'string' && page.length > 0) {
 			router.push({ name: page });
-			eda.sys_Storage.deleteExtensionUserConfig('page');
 		}
 	}
 	console.log('is EDA environment:', isEDA);
