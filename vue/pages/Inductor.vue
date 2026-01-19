@@ -53,6 +53,12 @@
 							峰值电流: <span class="calc-result-number">{{ peakCurrentDisplay }}</span>
 							<span class="calc-result-unit">A</span>
 						</div>
+						<div class="calc-result-actions">
+							<button class="search-button" :disabled="!result" @click="handleSearch"
+								:title="result ? '搜索推荐电感' : '等待计算结果'">
+								商城搜索
+							</button>
+						</div>
 						<div class="calc-result-note">基于经验公式计算<br />适用于非隔离开关电源拓扑</div>
 					</div>
 				</div>
@@ -65,6 +71,7 @@
 import { computed, ref } from 'vue';
 
 import { calcBuckInductor } from '../utils/inductor';
+import { isEDA } from '../utils/utils';
 
 const vin = ref<number | null>(12);
 const vout = ref<number | null>(5);
@@ -116,6 +123,19 @@ const recommendedInductanceDisplay = computed(() => {
 	const pick = found ?? Number(L.toFixed(2));
 	return pick.toFixed(2);
 });
+
+// 一键搜索处理器：在新标签页中搜索推荐电感（中文搜索词）
+const handleSearch = () => {
+	if (!result.value) return;
+	const query = `${recommendedInductanceDisplay.value}uH 功率电感`;
+	const url = `https://so.szlcsc.com/global.html?k=${encodeURIComponent(query)} `;
+	if (isEDA) {
+		eda.sys_Window.open(url, ESYS_WindowOpenTarget.BLANK);
+	}
+	else {
+		window.open(url, '_blank');
+	}
+};
 </script>
 
 <style scoped lang="scss">
@@ -139,7 +159,7 @@ const recommendedInductanceDisplay = computed(() => {
 		@include calc-field;
 	}
 
-	.calc-field > label {
+	.calc-field>label {
 		width: 160px;
 		display: inline-block;
 	}
@@ -173,6 +193,7 @@ const recommendedInductanceDisplay = computed(() => {
 		gap: 12px;
 		display: flex;
 		flex-direction: column;
+		position: relative;
 	}
 
 	.calc-result-inner {
@@ -201,6 +222,21 @@ const recommendedInductanceDisplay = computed(() => {
 	.calc-result-note {
 		@include calc-result-note;
 		padding-top: 5px;
+	}
+
+	.calc-result-actions {
+		position: absolute;
+		left: 12px;
+		bottom: 12px;
+		display: flex;
+		gap: 8px;
+	}
+
+	.search-button {
+		@include calc-button-primary;
+		padding: 6px 10px;
+		font-size: 13px;
+		line-height: 1;
 	}
 
 	@include hide-number-input-controls;
