@@ -450,21 +450,15 @@ const refreshDiffPairs = async () => {
 	}
 
 	.refresh-btn {
-		background: var(--calc-card);
-		color: var(--calc-text);
-		border: 1px solid var(--calc-border);
-
-		&:hover:not(:disabled) {
-			background: var(--calc-refresh-hover-bg);
-			border-color: var(--calc-primary);
-		}
+		@include calc-button-secondary;
 	}
 
 	.apply-btn {
-		background: var(--calc-primary);
-		color: white;
+		@include calc-button-primary;
+		color: white !important;
 
 		&:hover:not(:disabled) {
+			/* ensure stronger hover for apply */
 			background: #3b82f6;
 			box-shadow: var(--calc-btn-shadow);
 		}

@@ -316,3 +316,42 @@
 	color: var(--calc-primary);
 	font-weight: 600;
 }
+
+// 通用按钮样式 mixin
+@mixin calc-button($bg, $color, $border, $hoverBg, $shadow: none) {
+	padding: 8px 12px;
+	border-radius: 6px;
+	border: 1px solid #{$border};
+	background: #{$bg};
+	color: #{$color};
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+
+	&:hover:not(:disabled) {
+		background: #{$hoverBg};
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		background: var(--calc-card);
+		color: var(--calc-muted);
+		border-color: var(--calc-border);
+	}
+
+	@if $shadow != none {
+		box-shadow: $shadow;
+	}
+}
+
+// 主按钮（强调）
+@mixin calc-button-primary {
+	@include calc-button(var(--calc-primary), white, var(--calc-primary), var(--calc-primary), var(--calc-btn-shadow));
+}
+
+// 次要按钮（默认卡片风格）
+@mixin calc-button-secondary {
+	@include calc-button(var(--calc-card), var(--calc-text), var(--calc-border), var(--calc-refresh-hover-bg));
+}

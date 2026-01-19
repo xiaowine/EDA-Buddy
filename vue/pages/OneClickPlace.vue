@@ -135,6 +135,45 @@
                                     v-model="i2cNamePrefix" placeholder="默认无（留空）" />
                             </div>
                         </div>
+
+                        <!-- 特殊参数：USB -->
+                        <div v-if="selectedPlacementType === 'usb'" class="param-section" id="panel-usb" role="tabpanel"
+                            :aria-labelledby="'tab-usb'">
+                            <div class="section-title">USB 放置参数</div>
+
+                            <div class="form-row">
+                                <label class="form-label" for="usbGender">公母</label>
+                                <select id="usbGender" class="calc-input compact" v-model="usbGender">
+                                    <option value="female">母座</option>
+                                    <option value="male">公头</option>
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label" for="usbMountType">安装方式</label>
+                                <select id="usbMountType" class="calc-input compact" v-model="usbMountType">
+                                    <option value="through">插件</option>
+                                    <option value="smd">贴片</option>
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label" for="usbVersion">USB 版本</label>
+                                <select id="usbVersion" class="calc-input compact" v-model="usbVersion">
+                                    <option value="usb2">USB2</option>
+                                    <option value="usb3">USB3</option>
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label" for="usbVariant">器件版本</label>
+                                <select id="usbVariant" class="calc-input compact" v-model="usbVariant">
+                                    <option
+                                        v-for="opt in (usbVariantMap[usbMountType]?.[usbVersion]?.[usbGender] || [])"
+                                        :key="opt.lcsc" :value="opt.lcsc">{{ opt.label }}</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 操作按钮 固定底部 -->
@@ -143,7 +182,6 @@
                         <button type="button" class="btn-secondary" @click="handleReset">重置</button>
                     </div>
 
-                    <!-- 结果提示（已移除） -->
                 </form>
             </div>
         </div>
@@ -153,18 +191,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 
-import { isEDA, isSCH } from '../utils/utils';
-import { placeTwoEndedComponent, zoom, zoomToBBoxes } from '../utils/oneclickplace';
+import { alignAndConnectComponents, isEDA, isSCH } from '../utils/utils';
+import { placeTwoEndedComponent } from '../utils/oneclickplace';
 import type { PlaceTwoEndedResult } from '../utils/oneclickplace';
 import { NetFLAG, NetPort } from '../types/oneclickplace';
 import { getLcId, ResistorFootprint, ResistorValue } from '../types/resistors';
 import { getLedId, LedColor } from '../types/leds';
+import { usbVariantMap, USBGender, USBMountType, USBVersion, createConnectorPinNets } from '../types/usb';
 
 // 放置类型列表（精简为项目常用）
 const placementTypes = [
     { value: 'typec', label: 'Type-C' },
     { value: 'led', label: 'LED' },
     { value: 'i2c', label: 'I2C上拉' },
+    { value: 'usb', label: 'USB 接口' },
 ];
 
 const selectedPlacementType = ref<string>('');
@@ -183,6 +223,13 @@ const i2cResValue = ref<string>('4.7k');
 const i2cResPackage = ref<string>('0603');
 const i2cNamePrefix = ref<string>('');
 const i2cPullVoltage = ref<string>('3.3V');
+
+// USB 放置参数
+const usbGender = ref<USBGender>('female'); // female / male
+const usbMountType = ref<USBMountType>('through'); // through (插件) / smd (贴片)
+const usbVersion = ref<USBVersion>('usb2'); // usb2 / usb3
+// usbVariant 存储所选变体的 LCSC ID
+const usbVariant = ref<string>('');
 
 const loading = ref(false);
 /**
@@ -205,6 +252,12 @@ const validateInputs = computed(() => {
         if (!i2cResPackage.value) return '请选择 I2C 电阻封装';
         if (!i2cPullVoltage.value) return '请选择 I2C 上拉电压';
     }
+    if (selectedPlacementType.value === 'usb') {
+        if (!usbGender.value) return '请选择 USB 公或母';
+        if (!usbMountType.value) return '请选择插件或贴片';
+        if (!usbVersion.value) return '请选择 USB 版本 (USB2/USB3)';
+        if (!usbVariant.value) return '请选择具体器件版本';
+    }
     return '';
 });
 
@@ -226,31 +279,12 @@ const typec = async (libraryUuid: string, position: { x: number; y: number; }): 
                 return false;
             }
             const primitiveIds = [typecRes.component.getState_PrimitiveId()];
-            typecRes.pins.forEach(async pin => {
-                let pinName = pin.name;
-                if (pinName === 'SHELL') {
-                    pinName = 'GND';
-                } else if (pinName?.includes('SBU')) {
-                    return;
-                } else if (pinName?.includes('DP')) {
-                    pinName = 'DP';
-                } else if (pinName?.includes('DN')) {
-                    pinName = 'DM';
-                }
-                console.log('Processing pin:', pinName);
-                const x = pin.x;
-                const y = pin.y;
-                const rotation = 180 - pin.rotation;
-
-                const [net, line] = await Promise.all([
-                    eda.sch_PrimitiveComponent.createNetPort('IN', pinName, x, y, rotation),
-                    eda.sch_PrimitiveWire.create([x, y, x, y]),
-                ]);
-                const netPrimitiveId = net?.getState_PrimitiveId();
-                if (netPrimitiveId) {
-                    primitiveIds.push(netPrimitiveId);
-                }
-            });
+            try {
+                const created = await createConnectorPinNets(typecRes.pins);
+                primitiveIds.push(...created);
+            } catch (err) {
+                console.error('Type-C pin net creation failed', err);
+            }
 
             const placedResistor1 = await placeTwoEndedComponent(id, libraryUuid, position.x, position.y - 100, 0, [
                 { name: 'CC1', type: NetPort.IN },
@@ -265,11 +299,9 @@ const typec = async (libraryUuid: string, position: { x: number; y: number; }): 
                 eda.sys_Message.showToastMessage('CC 电阻放置失败', ESYS_ToastMessageType.ERROR, 5);
                 return false;
             }
-
-            // zoom([placedResistor.component.getState_PrimitiveId()]);
             eda.sch_SelectControl.doSelectPrimitives([...placedResistor1.primitiveIds, ...placedResistor2.primitiveIds, ...primitiveIds]);
-            eda.sys_Message.showToastMessage('Type-C CC 电阻放置完成', ESYS_ToastMessageType.SUCCESS, 3);
-            console.log('Type-C CC 电阻放置完成');
+            eda.sys_Message.showToastMessage('Type-C 放置完成', ESYS_ToastMessageType.SUCCESS, 3);
+            console.log('Type-C 放置完成');
             return true;
         }
         return false;
@@ -307,52 +339,13 @@ const led = async (libraryUuid: string, position: { x: number; y: number; }): Pr
             return false;
         }
 
-        // 选择要对齐的两个引脚：
-        // - 当 ledResPosition === 0（电阻在上方）时，电阻的下端（最大 y）对齐到 LED 的上端（最小 y）
-        // - 当 ledResPosition === 1（电阻在下方）时，电阻的上端（最小 y）对齐到 LED 的下端（最大 y）
-        const ledPins = placedLed.pins || [];
-        const resPins = placedResistor.pins || [];
-        if (!ledPins.length || !resPins.length) {
-            console.error('组件引脚信息不完整，无法对齐');
-            eda.sys_Message.showToastMessage('组件引脚信息不完整，无法对齐', ESYS_ToastMessageType.ERROR, 5);
+        const movingPos = ledResPosition.value === 1 ? 'top' : 'bottom';
+        const fixedPos = ledResPosition.value === 1 ? 'bottom' : 'top';
+        const ok = await alignAndConnectComponents(placedResistor, placedLed, movingPos as 'top' | 'bottom', fixedPos as 'top' | 'bottom');
+        if (!ok) {
             return false;
         }
 
-        // NOTE: 这里将分支反转以修正 UI 选择与实际行为相反的问题。
-        // 当 ledResPosition === 0（UI 显示“上”）时，实际按“下”处理；当 === 1（UI 显示“下”）时，按“上”处理。
-        const ledPin = ledResPosition.value === 1
-            ? ledPins.reduce((p, c) => (p.y <= c.y ? p : c)) // LED 上端（最小 y）
-            : ledPins.reduce((p, c) => (p.y >= c.y ? p : c)); // LED 下端（最大 y）
-
-        const resPin = ledResPosition.value === 1
-            ? resPins.reduce((p, c) => (p.y >= c.y ? p : c)) // 电阻下端（最大 y）
-            : resPins.reduce((p, c) => (p.y <= c.y ? p : c)); // 电阻上端（最小 y）
-
-        const baseResX = placedResistor.component.getState_X();
-        const baseResY = placedResistor.component.getState_Y();
-
-        const newX = baseResX + (ledPin.x - resPin.x);
-        const newY = baseResY + (ledPin.y - resPin.y);
-
-        // 移动电阻到对齐位置
-        await eda.sch_PrimitiveComponent.modify(placedResistor.component.getState_PrimitiveId(), {
-            ...placedResistor.component,
-            x: newX,
-            y: newY,
-        },);
-
-        // 计算移动后的电阻引脚位置（用于连线）
-        const deltaX = newX - baseResX;
-        const deltaY = newY - baseResY;
-        const movedResPinX = resPin.x + deltaX;
-        const movedResPinY = resPin.y + deltaY;
-
-        // 创建一条从 LED 引脚到移动后电阻引脚的连线（比零长度连线更直观）
-        await eda.sch_PrimitiveWire.create([ledPin.x, ledPin.y, movedResPinX, movedResPinY]);
-
-        // zoom([placedResistor.component.getState_PrimitiveId(), placedLed.component.getState_PrimitiveId()]);
-
-        eda.sch_SelectControl.doSelectPrimitives([...placedResistor.primitiveIds, ...placedLed.primitiveIds]);
         eda.sys_Message.showToastMessage('LED 放置完成', ESYS_ToastMessageType.SUCCESS, 3);
         return true;
     } catch (err) {
@@ -388,13 +381,54 @@ const i2c = async (libraryUuid: string, position: { x: number; y: number; }): Pr
             return false;
         }
     }
-
-    // zoomToBBoxes(resistors.map(r => r!.bbox!));
     eda.sch_SelectControl.doSelectPrimitives(resistors.flatMap(r => r!.primitiveIds));
     eda.sys_Message.showToastMessage('I2C 电阻放置完成', ESYS_ToastMessageType.SUCCESS, 3);
     console.log('I2C 电阻放置完成');
     return true;
 }
+
+const usb = async (libraryUuid: string, position: { x: number; y: number; }): Promise<boolean> => {
+    try {
+        const lcsc = usbVariant.value;
+        if (!lcsc) {
+            eda.sys_Message.showToastMessage('未选择具体器件变体', ESYS_ToastMessageType.ERROR, 3);
+            return false;
+        }
+
+        // 查找所选变体的显示名
+        const variants = usbVariantMap[usbMountType.value]?.[usbVersion.value]?.[usbGender.value] || [];
+        const selected = variants.find(v => v.lcsc === lcsc);
+        if (!selected) {
+            eda.sys_Message.showToastMessage('所选器件变体无效', ESYS_ToastMessageType.ERROR, 3);
+            return false;
+        }
+
+        const usbRes = await placeTwoEndedComponent(selected.lcsc, libraryUuid, position.x, position.y, 0, null);
+        if (!usbRes || !usbRes.component) {
+            console.error('USB 接口放置失败');
+            eda.sys_Message.showToastMessage('USB 接口放置失败', ESYS_ToastMessageType.ERROR, 5);
+            return false;
+        }
+
+        const primitiveIds = [usbRes.component.getState_PrimitiveId()];
+        try {
+            const created = await createConnectorPinNets(usbRes.pins);
+            primitiveIds.push(...created);
+        } catch (err) {
+            console.error('USB pin net creation failed', err);
+        }
+
+        eda.sch_SelectControl.doSelectPrimitives(primitiveIds);
+        eda.sys_Message.showToastMessage('USB 放置完成', ESYS_ToastMessageType.SUCCESS, 3);
+        console.info('USB 放置参数', { gender: usbGender.value, mount: usbMountType.value, version: usbVersion.value, lcsc, label: selected?.label });
+        return false;
+    } catch (err) {
+        console.error('USB 放置时出错', err);
+        eda.sys_Message.showToastMessage('USB 放置时发生错误', ESYS_ToastMessageType.ERROR, 5);
+        return false;
+    }
+}
+
 
 /**
  * 处理放置操作
@@ -425,10 +459,10 @@ const handlePlacement = async () => {
 
     if (!isEDA) return;
 
-    await eda.sys_IFrame.closeIFrame('OneClickPlace');
-    eda.sys_Message.showToastMessage('请在原理图上左键点击选择放置位置，右键取消放置', ESYS_ToastMessageType.INFO, 5);
+    await eda.sys_IFrame.hideIFrame('OneClickPlace');
+    eda.sys_Message.showToastMessage('请在原理图上左键点击选择放置位置', ESYS_ToastMessageType.INFO, 5);
     eda.sch_Event.addMouseEventListener("OneClickPlace", 'all', async (eventType: ESCH_MouseEventType) => {
-        console.log("mouse event", eventType);
+        console.warn("mouse event", eventType);
         if (eventType === ESCH_MouseEventType.SELECTED) {
             loading.value = true;
             const libraryUuid = await eda.lib_LibrariesList.getSystemLibraryUuid();
@@ -447,6 +481,10 @@ const handlePlacement = async () => {
                         await i2c(libraryUuid, position);
                         break;
                     }
+                    case 'usb': {
+                        await usb(libraryUuid, position);
+                        break;
+                    }
                 }
             } else {
                 console.error('无法获取系统库 UUID，放置失败');
@@ -456,6 +494,8 @@ const handlePlacement = async () => {
         } else if (eventType === ESCH_MouseEventType.CLEAR_SELECTED) {
             eda.sys_Message.showToastMessage('放置已取消', ESYS_ToastMessageType.INFO, 3);
         }
+
+        await eda.sys_IFrame.closeIFrame('OneClickPlace');
     }, true);
 
 
@@ -476,7 +516,13 @@ const handleReset = () => {
     i2cResPackage.value = '0603';
     i2cNamePrefix.value = '';
     i2cPullVoltage.value = '3.3V';
+    // USB 重置
+    usbGender.value = 'female';
+    usbMountType.value = 'through';
+    usbVersion.value = 'usb2';
+    usbVariant.value = '';
 };
+
 
 watch(
     loading,
@@ -493,7 +539,22 @@ watch(
 );
 
 onMounted(() => {
-    eda.sch_Event.removeEventListener("OneClickPlace");
+    if (isEDA) {
+        eda.sch_Event.removeEventListener("OneClickPlace");
+    }
+    // 初始化 USB 器件版本为对应选项的第一个
+    try {
+        const opts = usbVariantMap[usbMountType.value]?.[usbVersion.value]?.[usbGender.value] || [];
+        usbVariant.value = opts.length ? opts[0].lcsc : '';
+    } catch (e) {
+        usbVariant.value = '';
+    }
+});
+
+// 当安装方式或版本变更时，默认选择首个器件版本
+watch([usbMountType, usbVersion, usbGender], () => {
+    const opts = usbVariantMap[usbMountType.value]?.[usbVersion.value]?.[usbGender.value] || [];
+    usbVariant.value = opts.length ? opts[0].lcsc : '';
 });
 </script>
 
@@ -733,39 +794,35 @@ onMounted(() => {
 }
 
 .btn-primary {
+    @include calc-button-primary;
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
     border: none;
     outline: none;
-    background: var(--calc-primary);
-    color: white;
-    box-shadow: var(--calc-btn-shadow);
     background-clip: padding-box;
-}
 
-.btn-primary:hover {
-    filter: brightness(1.1);
-}
+    &:hover {
+        /* keep the subtle interactive feedback */
+        filter: brightness(1.03);
+    }
 
-.btn-primary:focus-visible {
-    /* keep a subtle focus ring but avoid duplicating the main button shadow which can look like a border */
-    box-shadow: var(--calc-focus-ring);
+    &:focus-visible {
+        box-shadow: var(--calc-focus-ring);
+    }
 }
 
 .btn-secondary {
-    background: transparent;
-    color: var(--calc-text);
-    border: 1px solid var(--calc-border);
-}
+    @include calc-button-secondary;
 
-.btn-secondary:hover {
-    background: var(--calc-row-hover);
-    border-color: var(--calc-primary);
-}
+    &:hover {
+        background: var(--calc-row-hover);
+        border-color: var(--calc-primary);
+    }
 
-.btn-secondary:focus-visible {
-    box-shadow: var(--calc-focus-ring);
+    &:focus-visible {
+        box-shadow: var(--calc-focus-ring);
+    }
 }
 
 @media (prefers-color-scheme: dark) {

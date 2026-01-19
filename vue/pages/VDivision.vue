@@ -14,7 +14,8 @@
 				</div>
 				<svg viewBox="0 0 360 400" preserveAspectRatio="xMidYMid meet" class="diagram">
 					<defs>
-						<rect id="resistor-iec" x="-10" y="-30" width="20" height="60" fill="none" stroke-width="3" stroke-linejoin="round" />
+						<rect id="resistor-iec" x="-10" y="-30" width="20" height="60" fill="none" stroke-width="3"
+							stroke-linejoin="round" />
 					</defs>
 
 					<g fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round">
@@ -27,7 +28,8 @@
 					</g>
 
 					<!-- R1电阻及其两端连接线 -->
-					<g transform="translate(120, 150)" fill="none" stroke="#008000" stroke-width="3" stroke-linecap="round">
+					<g transform="translate(120, 150)" fill="none" stroke="#008000" stroke-width="3"
+						stroke-linecap="round">
 						<!-- R1上端连接线 -->
 						<path d="M 0 -50 L 0 -30" />
 						<!-- R1电阻本体 -->
@@ -37,7 +39,8 @@
 					</g>
 
 					<!-- R2电阻及其两端连接线 -->
-					<g transform="translate(120, 270)" fill="none" stroke="#008000" stroke-width="3" stroke-linecap="round">
+					<g transform="translate(120, 270)" fill="none" stroke="#008000" stroke-width="3"
+						stroke-linecap="round">
 						<!-- R2上端连接线 -->
 						<path d="M 0 -50 L 0 -30" />
 						<!-- R2电阻本体 -->
@@ -49,42 +52,33 @@
 					<circle cx="120" cy="40" r="6" fill="#dc2626" />
 					<foreignObject x="130" y="22" width="60" height="32">
 						<div xmlns="http://www.w3.org/1999/xhtml">
-							<input type="number" v-model.number="vin" step="0.01" class="svg-input vin-input" placeholder="12" />
+							<input type="number" v-model.number="vin" step="0.01" class="svg-input vin-input"
+								placeholder="12" />
 						</div>
 					</foreignObject>
 					<text x="195" y="42" font-size="12" fill="#3b82f6">V</text>
 					<text x="130" y="70" font-size="14" fill="#3b82f6" font-weight="black">输入电压</text>
 
 					<!-- R1标签和输入框 -->
-					<text x="90" y="155" text-anchor="middle" font-size="16" fill="var(--calc-text)" font-weight="bold">R1</text>
+					<text x="90" y="155" text-anchor="middle" font-size="16" fill="var(--calc-text)"
+						font-weight="bold">R1</text>
 					<foreignObject x="145" y="134" width="60" height="32">
 						<div xmlns="http://www.w3.org/1999/xhtml">
-							<input
-								type="text"
-								:value="r1InputValue"
-								class="svg-input r-input"
-								:readonly="mode === 'reverse'"
-								@input="updateR1Input"
-								@blur="commitR1"
-								placeholder="1M"
-							/>
+							<input type="text" :value="r1InputValue" class="svg-input r-input"
+								:readonly="mode === 'reverse'" @input="updateR1Input" @blur="commitR1"
+								placeholder="1M" />
 						</div>
 					</foreignObject>
 					<text x="210" y="148" font-size="12" fill="#008000" opacity="0.8">Ω</text>
 
 					<!-- R2标签和输入框 -->
-					<text x="90" y="275" text-anchor="middle" font-size="16" fill="var(--calc-text)" font-weight="bold">R2</text>
+					<text x="90" y="275" text-anchor="middle" font-size="16" fill="var(--calc-text)"
+						font-weight="bold">R2</text>
 					<foreignObject x="145" y="254" width="60" height="32">
 						<div xmlns="http://www.w3.org/1999/xhtml">
-							<input
-								type="text"
-								:value="r2InputValue"
-								class="svg-input r-input"
-								:readonly="mode === 'reverse'"
-								@input="updateR2Input"
-								@blur="commitR2"
-								placeholder="10k"
-							/>
+							<input type="text" :value="r2InputValue" class="svg-input r-input"
+								:readonly="mode === 'reverse'" @input="updateR2Input" @blur="commitR2"
+								placeholder="10k" />
 						</div>
 					</foreignObject>
 					<text x="210" y="268" font-size="12" fill="#008000" opacity="0.8">Ω</text>
@@ -93,23 +87,17 @@
 					<circle cx="180" cy="220" r="5" fill="#dc2626" />
 					<foreignObject x="190" y="204" width="60" height="32">
 						<div xmlns="http://www.w3.org/1999/xhtml">
-							<input
-								type="number"
-								:value="voutInputValue"
-								step="0.001"
-								:readonly="mode === 'forward'"
-								@input="updateVtargetInput"
-								@blur="commitVtarget"
-								class="svg-input vout-input"
-								:placeholder="mode === 'forward' ? '0.119' : '6.0'"
-							/>
+							<input type="number" :value="voutInputValue" step="0.001" :readonly="mode === 'forward'"
+								@input="updateVtargetInput" @blur="commitVtarget" class="svg-input vout-input"
+								:placeholder="mode === 'forward' ? '0.119' : '6.0'" />
 						</div>
 					</foreignObject>
 					<text x="255" y="222" font-size="12" fill="#3b82f6">V</text>
 					<text x="190" y="195" font-size="14" fill="#3b82f6" font-weight="black">输出电压</text>
 
 					<g transform="translate(105, 360)">
-						<path d="M 0 0 h 30 M 5 6 h 20 M 10 12 h 10" stroke="#008000" stroke-width="3" stroke-linecap="round" />
+						<path d="M 0 0 h 30 M 5 6 h 20 M 10 12 h 10" stroke="#008000" stroke-width="3"
+							stroke-linecap="round" />
 					</g>
 				</svg>
 			</div>
@@ -143,6 +131,18 @@
 							<div class="param-value">{{ formatPower(powerTotal) }}</div>
 						</div>
 					</div>
+
+					<!-- 一键放置按钮（仅在原理图中可用，提示悬浮显示） -->
+					<div class="action-row">
+						<select v-model="packageSize" :disabled="!isSch" class="calc-select size-select"
+							aria-label="封装选择">
+							<option value="0402">0402</option>
+							<option value="0603">0603</option>
+							<option value="0805">0805</option>
+						</select>
+						<button @click="oneClickPlace" :disabled="!isSch" class="btn-primary">一键放置</button>
+						<div v-if="!isSch" class="tooltip">仅在原理图中启用</div>
+					</div>
 				</div>
 
 				<!-- 反向模式：显示结果列表 -->
@@ -158,19 +158,16 @@
 						</div>
 
 						<div class="results-list" v-if="results.length > 0">
-							<div
-								v-for="(result, index) in results"
-								:key="index"
-								class="result-item"
-								:class="{ selected: selectedIndex === index }"
-								@click="selectResult(index)"
-							>
+							<div v-for="(result, index) in results" :key="index" class="result-item"
+								:class="{ selected: selectedIndex === index }" @click="selectResult(index)">
 								<div class="result-main">
-									<span class="resistors"> {{ formatResistance(result.r1) }} / {{ formatResistance(result.r2) }} </span>
+									<span class="resistors"> {{ formatResistance(result.r1) }} / {{
+										formatResistance(result.r2) }} </span>
 									<span class="voltage">{{ result.vout.toFixed(3) }}V</span>
 								</div>
 								<div class="result-details">
-									<span class="error">误差: {{ result.error.toFixed(2) }}{{ config.errorMode === 'percent' ? '%' : 'V' }}</span>
+									<span class="error">误差: {{ result.error.toFixed(2) }}{{ config.errorMode ===
+										'percent' ? '%' : 'V' }}</span>
 									<span class="power">{{ formatPower(result.powerTotal) }}</span>
 								</div>
 							</div>
@@ -209,38 +206,26 @@
 					<div class="setting-group">
 						<label>阻值范围：</label>
 						<div class="range-inputs">
-							<input
-								type="text"
-								:value="formatResistance(config.minR).replace('Ω', '')"
+							<input type="text" :value="formatResistance(config.minR).replace('Ω', '')"
 								class="calc-input"
-								@input="(e) => (config.minR = parseResistance((e.target as HTMLInputElement).value))"
-							/>
+								@input="(e) => (config.minR = parseResistance((e.target as HTMLInputElement).value))" />
 							<span>到</span>
-							<input
-								type="text"
-								:value="formatResistance(config.maxR).replace('Ω', '')"
+							<input type="text" :value="formatResistance(config.maxR).replace('Ω', '')"
 								class="calc-input"
-								@input="(e) => (config.maxR = parseResistance((e.target as HTMLInputElement).value))"
-							/>
+								@input="(e) => (config.maxR = parseResistance((e.target as HTMLInputElement).value))" />
 						</div>
 					</div>
 
 					<div class="setting-group">
 						<label>戴维南阻抗范围：</label>
 						<div class="range-inputs">
-							<input
-								type="text"
-								:value="formatResistance(config.minRth).replace('Ω', '')"
+							<input type="text" :value="formatResistance(config.minRth).replace('Ω', '')"
 								class="calc-input"
-								@input="(e) => (config.minRth = parseResistance((e.target as HTMLInputElement).value))"
-							/>
+								@input="(e) => (config.minRth = parseResistance((e.target as HTMLInputElement).value))" />
 							<span>到</span>
-							<input
-								type="text"
-								:value="formatResistance(config.maxRth).replace('Ω', '')"
+							<input type="text" :value="formatResistance(config.maxRth).replace('Ω', '')"
 								class="calc-input"
-								@input="(e) => (config.maxRth = parseResistance((e.target as HTMLInputElement).value))"
-							/>
+								@input="(e) => (config.maxRth = parseResistance((e.target as HTMLInputElement).value))" />
 						</div>
 					</div>
 
@@ -252,12 +237,8 @@
 								<option value="absolute">绝对电压误差</option>
 							</select>
 							<span>{{ config.errorMode === 'percent' ? '%' : 'V' }}</span>
-							<input
-								type="number"
-								v-model.number="config.errorValue"
-								class="calc-input"
-								:step="config.errorMode === 'percent' ? '0.1' : '0.001'"
-							/>
+							<input type="number" v-model.number="config.errorValue" class="calc-input"
+								:step="config.errorMode === 'percent' ? '0.1' : '0.001'" />
 						</div>
 					</div>
 				</div>
@@ -271,7 +252,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, onMounted } from 'vue';
 
 import { EnumerationConfig, ErrorMode, ResistorResult, ResistorSeries } from '../types/voltageDivider';
 import {
@@ -285,6 +266,9 @@ import {
 	formatResistance,
 	parseResistance,
 } from '../utils/voltageDivider';
+import { alignAndConnectComponents, isEDA, isSCH } from '../utils/utils';
+import { placeTwoEndedComponent, PlaceTwoEndedResult } from '../utils/oneclickplace';
+import { getLcId } from '../types/resistors';
 
 // 响应式数据
 const mode = ref<'forward' | 'reverse'>('forward');
@@ -302,6 +286,13 @@ const showSettings = ref(false);
 const isCalculating = ref(false);
 const selectedIndex = ref<number | null>(null);
 const results = ref<ResistorResult[]>([]);
+
+
+const loading = ref(false);
+// 是否处于原理图环境（仅在原理图时允许放置）
+const isSch = ref(false);
+// 封装选择 0402 / 0603 / 0805
+const packageSize = ref<'0402' | '0603' | '0805'>('0603');
 
 const config = ref<EnumerationConfig>({
 	series: 'E96' as ResistorSeries,
@@ -367,6 +358,78 @@ const calculateReverse = () => {
 		results.value = enumerateResistorsCombinations(vin.value, vtarget.value, config.value);
 		isCalculating.value = false;
 	});
+};
+
+
+// 一键放置（仅在原理图环境允许）
+const oneClickPlace = async () => {
+	await eda.sys_IFrame.hideIFrame('VDivision');
+	eda.sys_Message.showToastMessage('请在原理图上左键点击选择放置位置', ESYS_ToastMessageType.INFO, 5);
+	eda.sch_Event.addMouseEventListener("VDivision", 'all', async (eventType: ESCH_MouseEventType) => {
+		console.warn("mouse event", eventType);
+		if (eventType === ESCH_MouseEventType.SELECTED) {
+			loading.value = true;
+			const libraryUuid = await eda.lib_LibrariesList.getSystemLibraryUuid();
+			const position = await eda.sch_SelectControl.getCurrentMousePosition();
+			const id = getLcId(packageSize.value, "10k");
+			if (libraryUuid && position && id) {
+				// const [resistors1, resistors2] = await Promise.all([
+				const [resistors1] = await Promise.all([
+					placeTwoEndedComponent(id, libraryUuid, position.x, position.y, 90, null),
+					// placeTwoEndedComponent(id, libraryUuid, position.x, position.y - 50, 90, null),
+				]) as Array<PlaceTwoEndedResult | null>;
+				// console.warn('放置结果', resistors1, resistors2);
+				console.warn('放置结果', resistors1);
+				// if (resistors1 && resistors2) {
+				if (resistors1) {
+					const id1 = resistors1.component?.getState_PrimitiveId();
+					// const id2 = resistors2.component?.getState_PrimitiveId();
+					console.warn('获取到的 PrimitiveId', id1);
+					// console.warn('获取到的 PrimitiveId', id1, id2);
+					// if (id1 && id2) {
+					if (id1) {
+						try {
+							// const v1 = formatResistance(r1.value);
+							// const v2 = formatResistance(r2.value);
+							// console.warn('更新属性', id1, id2, v1, v2);
+
+
+							await eda.sch_PrimitiveComponent.modify(id1, {
+								manufacturer: undefined,
+								manufacturerId: undefined,
+								supplier: undefined,
+								supplierId: undefined,
+								otherProperty: {
+									"value": "10.49kΩ"
+								}
+							});
+
+							// await alignAndConnectComponents(resistors1, resistors2, 'bottom', 'top');
+						} catch (err) {
+							console.warn('放置或更新属性失败', err);
+							eda.sys_Message.showToastMessage('放置或属性更新失败，请重试', ESYS_ToastMessageType.ERROR, 5);
+						}
+					} else {
+						// console.warn('无法获取元件 PrimitiveId', { id1, id2, resistors1, resistors2 });
+						console.warn('无法获取元件 PrimitiveId', { id1, resistors1 });
+						eda.sys_Message.showToastMessage('放置失败，请重试', ESYS_ToastMessageType.ERROR, 5);
+					}
+				} else {
+					eda.sys_Message.showToastMessage('放置失败，请重试', ESYS_ToastMessageType.ERROR, 5);
+					// console.warn('放置电阻失败', { resistors1, resistors2 });
+					console.warn('放置电阻失败', { resistors1 });
+				}
+			} else {
+				console.warn('无法获取系统库 UUID，放置失败');
+			}
+
+			loading.value = false;
+		} else if (eventType === ESCH_MouseEventType.CLEAR_SELECTED) {
+			eda.sys_Message.showToastMessage('放置已取消', ESYS_ToastMessageType.INFO, 3);
+		}
+
+		await eda.sys_IFrame.closeIFrame('VDivision');
+	}, true);
 };
 
 // 选择结果
@@ -445,6 +508,34 @@ watch([vin, vtarget], () => {
 		calculateReverse();
 	}
 });
+
+watch(
+	loading,
+	(newVal) => {
+		if (isEDA) {
+			if (newVal) {
+				eda.sys_LoadingAndProgressBar.showLoading();
+			} else {
+				eda.sys_LoadingAndProgressBar.destroyLoading();
+			}
+		}
+	},
+	{ flush: 'sync' },
+);
+
+
+// 页面初始化，检测是否为原理图环境
+onMounted(async () => {
+	try {
+		isSch.value = await isSCH();
+	} catch (err) {
+		console.warn('检测原理图环境失败', err);
+		isSch.value = false;
+	}
+	if (isEDA) {
+		eda.sch_Event.removeEventListener("VDivision");
+	}
+});
 </script>
 
 <style scoped lang="scss">
@@ -498,17 +589,10 @@ watch([vin, vtarget], () => {
 	}
 
 	.settings-btn {
-		padding: 4px 6px;
-		border: 1px solid var(--calc-border);
-		border-radius: 4px;
-		background: var(--calc-card);
-		color: var(--calc-text);
-		cursor: pointer;
+		@include calc-button-secondary;
 		font-size: 12px;
-
-		&:hover {
-			background: var(--calc-refresh-hover-bg);
-		}
+		padding: 4px 6px;
+		border-radius: 4px;
 	}
 }
 
@@ -553,7 +637,7 @@ watch([vin, vtarget], () => {
 	flex-direction: column;
 
 	h3 {
-		margin-bottom: 16px;
+		margin-bottom: 12px;
 		color: var(--calc-text);
 		flex-shrink: 0;
 	}
@@ -562,7 +646,7 @@ watch([vin, vtarget], () => {
 .param-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 10px;
+	gap: 5px;
 	flex: 1;
 	align-content: start;
 }
@@ -625,21 +709,9 @@ watch([vin, vtarget], () => {
 		}
 
 		.refresh-btn {
+			@include calc-button-secondary;
 			padding: 6px 12px;
-			border: 1px solid var(--calc-border);
-			border-radius: 6px;
-			background: var(--calc-card);
-			color: var(--calc-text);
-			cursor: pointer;
-
-			&:hover:not(:disabled) {
-				background: var(--calc-refresh-hover-bg);
-			}
-
-			&:disabled {
-				opacity: 0.6;
-				cursor: not-allowed;
-			}
+			/* override default padding */
 		}
 	}
 
@@ -803,30 +875,78 @@ watch([vin, vtarget], () => {
 		justify-content: flex-end;
 
 		button {
+			@include calc-button-secondary;
 			padding: 8px 16px;
-			border: 1px solid var(--calc-border);
-			border-radius: 6px;
-			cursor: pointer;
 
 			&.btn-secondary {
-				background: var(--calc-card);
-				color: var(--calc-text);
-
-				&:hover {
-					background: var(--calc-refresh-hover-bg);
-				}
+				/* keep secondary appearance */
+				@include calc-button-secondary;
+				padding: 8px 16px;
 			}
 
 			&.btn-primary {
-				background: var(--calc-primary);
-				color: white;
-				border-color: var(--calc-primary);
-
-				&:hover {
-					background: var(--calc-primary);
-					opacity: 0.9;
-				}
+				@include calc-button-primary;
+				padding: 8px 16px;
 			}
+		}
+	}
+}
+
+/* Action row: 包含封装选择、放置按钮与悬浮提示，使用嵌套便于维护 */
+.action-row {
+	margin-top: 12px;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+	position: relative;
+
+	.size-select {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 8px 10px;
+		border-radius: 6px;
+		border: 1px solid var(--calc-border);
+		background: var(--calc-card);
+		color: var(--calc-text);
+
+		&:focus {
+			outline: none;
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+		}
+	}
+
+	.btn-primary {
+		@include calc-button-primary;
+		flex: 1;
+		/* 让按钮在 flex 容器中伸展 */
+		min-width: 0;
+	}
+
+	.tooltip {
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%) translateY(6px);
+		bottom: 100%;
+		background: var(--calc-bg);
+		color: var(--calc-muted);
+		border: 1px solid var(--calc-border);
+		padding: 6px 8px;
+		border-radius: 6px;
+		font-size: 12px;
+		white-space: nowrap;
+		box-shadow: var(--calc-shadow);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.12s ease, transform 0.12s ease;
+		z-index: 50;
+	}
+
+	&:hover {
+		.tooltip {
+			opacity: 1;
+			transform: translateX(-50%) translateY(0);
+			pointer-events: auto;
 		}
 	}
 }
