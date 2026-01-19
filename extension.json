@@ -26,73 +26,7 @@
 	"headerMenus": {
 		"home": [
 			{
-				"id": "EDA Buddy HOME",
-				"title": "EDA Buddy",
-				"menuItems": [
-					{
-						"id": "Via",
-						"title": "Via...",
-						"registerFn": "via"
-					},
-					{
-						"id": "Wire",
-						"title": "Wire...",
-						"registerFn": "wire"
-					},
-					{
-						"id": "Inductor",
-						"title": "Inductor...",
-						"registerFn": "inductor"
-					},
-					{
-						"id": "VDivision",
-						"title": "VDivision...",
-						"registerFn": "vDivision"
-					},
-					{
-						"id": "OneClickPlace",
-						"title": "OneClickPlace...",
-						"registerFn": "oneClickPlace"
-					}
-				]
-			}
-		],
-		"sch": [
-			{
-				"id": "EDA Buddy SCH",
-				"title": "EDA Buddy",
-				"menuItems": [
-					{
-						"id": "Via",
-						"title": "Via...",
-						"registerFn": "via"
-					},
-					{
-						"id": "Wire",
-						"title": "Wire...",
-						"registerFn": "wire"
-					},
-					{
-						"id": "Inductor",
-						"title": "Inductor...",
-						"registerFn": "inductor"
-					},
-					{
-						"id": "VDivision",
-						"title": "VDivision...",
-						"registerFn": "vDivision"
-					},
-					{
-						"id": "OneClickPlace",
-						"title": "OneClickPlace...",
-						"registerFn": "oneClickPlace"
-					}
-				]
-			}
-		],
-		"pcb": [
-			{
-				"id": "EDA Buddy PCB",
+				"id": "EDA Buddy",
 				"title": "EDA Buddy",
 				"menuItems": [
 					{
@@ -126,6 +60,20 @@
 						"registerFn": "oneClickPlace"
 					}
 				]
+			}
+		],
+		"sch": [
+			{
+				"id": "EDA Buddy",
+				"title": "EDA Buddy",
+				"menuItems": []
+			}
+		],
+		"pcb": [
+			{
+				"id": "EDA Buddy",
+				"title": "EDA Buddy",
+				"menuItems": []
 			}
 		]
 	}

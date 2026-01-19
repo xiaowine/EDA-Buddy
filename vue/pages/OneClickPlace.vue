@@ -153,7 +153,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 
-import { isEDA } from '../utils/utils';
+import { isEDA, isSCH } from '../utils/utils';
 import { placeTwoEndedComponent, zoom, zoomToBBoxes } from '../utils/oneclickplace';
 import type { PlaceTwoEndedResult } from '../utils/oneclickplace';
 import { NetFLAG, NetPort } from '../types/oneclickplace';
@@ -400,6 +400,12 @@ const i2c = async (libraryUuid: string, position: { x: number; y: number; }): Pr
  * 处理放置操作
  */
 const handlePlacement = async () => {
+    if (!(await isSCH())) {
+        eda.sys_Message.showToastMessage('当前不在原理图编辑环境中，无法放置组件', ESYS_ToastMessageType.ERROR, 5);
+        return;
+    }
+
+
     const error = validateInputs.value;
     if (error) {
         console.error('验证错误:', error);

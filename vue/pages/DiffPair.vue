@@ -57,31 +57,22 @@
 
 			<div class="right">
 				<div class="calc-result" style="padding-left: 0">
-					<DiffPairTable
-						:title="`差分对 (${normalPairs.length})`"
-						:data="normalPairs"
-						:columns="normalTableColumns"
-						:selected-map="selectedMap"
-						:selectable="true"
-						@update:selected-map="Object.assign(selectedMap, $event)"
-					/>
+					<DiffPairTable :title="`差分对 (${normalPairs.length})`" :data="normalPairs"
+						:columns="normalTableColumns" :selected-map="selectedMap" :selectable="true"
+						@update:selected-map="Object.assign(selectedMap, $event)" />
 
-					<DiffPairTable
-						:title="`疑似可生成差分对 (${passiveComponentPairs.length})`"
-						:data="passiveComponentPairs"
-						:columns="passiveTableColumns"
-						:selectable="true"
-						:selected-map="selectedMap"
-						@update:selected-map="Object.assign(selectedMap, $event)"
-						table-class="dp-table-passive"
-					>
+					<DiffPairTable :title="`疑似可生成差分对 (${passiveComponentPairs.length})`" :data="passiveComponentPairs"
+						:columns="passiveTableColumns" :selectable="true" :selected-map="selectedMap"
+						@update:selected-map="Object.assign(selectedMap, $event)" table-class="dp-table-passive">
 						<template #cell-differentialPairName="{ item }">
 							{{ item.differentialPairName }}
 						</template>
 						<template #cell-unpairedStatus="{ item }">
 							<div style="display: flex; flex-direction: column; gap: 4px">
-								<div v-if="item.unpairedPositiveDesignators?.length">正: {{ item.unpairedPositiveDesignators.join(', ') }}</div>
-								<div v-if="item.unpairedNegativeDesignators?.length">负: {{ item.unpairedNegativeDesignators.join(', ') }}</div>
+								<div v-if="item.unpairedPositiveDesignators?.length">正: {{
+									item.unpairedPositiveDesignators.join(', ') }}</div>
+								<div v-if="item.unpairedNegativeDesignators?.length">负: {{
+									item.unpairedNegativeDesignators.join(', ') }}</div>
 							</div>
 						</template>
 						<template #cell-unpairedNets="{ item }">
@@ -93,23 +84,13 @@
 						<template #empty>未发现疑似可生成差分对</template>
 					</DiffPairTable>
 
-					<DiffPairTable
-						:title="`重名差分对 (${duplicatedPairs.length})`"
-						:data="duplicatedPairs"
-						:columns="normalTableColumns"
-						:selected-map="selectedMap"
-						:selectable="true"
-						@update:selected-map="Object.assign(selectedMap, $event)"
-					/>
+					<DiffPairTable :title="`重名差分对 (${duplicatedPairs.length})`" :data="duplicatedPairs"
+						:columns="normalTableColumns" :selected-map="selectedMap" :selectable="true"
+						@update:selected-map="Object.assign(selectedMap, $event)" />
 
-					<DiffPairTable
-						:title="`已存在差分对 (${existingPairs.length})`"
-						:data="existingPairs"
-						:columns="normalTableColumns"
-						:actions="existingTableActions"
-						table-class="dp-table-exist"
-						@action="handleExistingAction"
-					/>
+					<DiffPairTable :title="`已存在差分对 (${existingPairs.length})`" :data="existingPairs"
+						:columns="normalTableColumns" :actions="existingTableActions" table-class="dp-table-exist"
+						@action="handleExistingAction" />
 				</div>
 				<div class="dup-note">
 					说明：重名差分对表示名称与已有差分对或识别出的其他差分对冲突，但是网络不冲突，系统会在后面添加*号；检测到未配对器件表示在差分对网络上发现了连接到其他网络的器件，可生成新差分对。
@@ -126,7 +107,7 @@ import DiffPairTable from '../components/DiffPairTable.vue';
 import type { TableAction, TableColumn } from '../components/DiffPairTable.vue';
 import { Component, EasyEDANetlist, PassiveComponentPair } from '../types/netlist';
 import { findSingleNetPassivesByPairs, identifyNewDiffPairs, test } from '../utils/diffpair';
-import { isEDA } from '../utils/utils';
+import { isEDA, isPCB, isSCH } from '../utils/utils';
 
 const loading = ref(false);
 type IPCB_DifferentialPairItem = { name: string; positiveNet: string; negativeNet: string };
@@ -206,7 +187,12 @@ watch(
 );
 
 onMounted(async () => {
-	refreshDiffPairs();
+	if (!(await isPCB())) {
+		eda.sys_Message.showToastMessage('当前不在PCB编辑环境中，差分对管理不可用', ESYS_ToastMessageType.ERROR, 5);
+		return;
+	} else {
+		refreshDiffPairs();
+	}
 });
 
 const applyDiffPairs = async () => {
@@ -402,7 +388,7 @@ const refreshDiffPairs = async () => {
 		font-weight: 500;
 	}
 
-	.left .calc-field > div {
+	.left .calc-field>div {
 		font-weight: 600;
 		color: var(--calc-text);
 	}
