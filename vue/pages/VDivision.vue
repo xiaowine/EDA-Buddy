@@ -140,8 +140,10 @@
 							<option value="0603">0603</option>
 							<option value="0805">0805</option>
 						</select>
-						<button @click="oneClickPlace" :disabled="!isSch" class="btn-primary">一键放置</button>
-						<div v-if="!isSch" class="tooltip">仅在原理图中启用</div>
+						<button @click="oneClickPlace" :disabled="!isSch" :title="!isSch ? '因EDA BUG暂未实现' : ''"
+							class="btn-primary">一键放置</button>
+						<!-- <button @click="oneClickPlace" :disabled="!isSch" :title="!isSch ? '仅在原理图中启用' : ''"
+							class="btn-primary">一键放置</button> -->
 					</div>
 				</div>
 
@@ -530,7 +532,7 @@ onMounted(async () => {
 		isSch.value = await isSCH();
 	} catch (err) {
 		console.warn('检测原理图环境失败', err);
-		isSch.value = false;
+		// isSch.value = false;
 	}
 	if (isEDA) {
 		eda.sch_Event.removeEventListener("VDivision");
@@ -921,33 +923,6 @@ onMounted(async () => {
 		flex: 1;
 		/* 让按钮在 flex 容器中伸展 */
 		min-width: 0;
-	}
-
-	.tooltip {
-		position: absolute;
-		left: 50%;
-		transform: translateX(-50%) translateY(6px);
-		bottom: 100%;
-		background: var(--calc-bg);
-		color: var(--calc-muted);
-		border: 1px solid var(--calc-border);
-		padding: 6px 8px;
-		border-radius: 6px;
-		font-size: 12px;
-		white-space: nowrap;
-		box-shadow: var(--calc-shadow);
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 0.12s ease, transform 0.12s ease;
-		z-index: 50;
-	}
-
-	&:hover {
-		.tooltip {
-			opacity: 1;
-			transform: translateX(-50%) translateY(0);
-			pointer-events: auto;
-		}
 	}
 }
 

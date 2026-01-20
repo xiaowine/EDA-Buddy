@@ -11,7 +11,7 @@ const openPage = async (name: string, width: number, height: number) => {
 };
 
 export function via(): void {
-	openPage('Via', 393.4, 308.7);
+	openPage('Via', 393.4, 360.7);
 }
 
 export function wire(): void {

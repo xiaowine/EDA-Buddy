@@ -134,7 +134,6 @@ const passiveTableColumns: TableColumn[] = [
 	{ key: 'unpairedNets', label: '未成对的网络', width: '40%' },
 ];
 
-const passiveTableActions: TableAction[] = [];
 
 const existingTableActions: TableAction[] = [{ key: 'delete', text: '删除', class: 'delete-btn' }];
 

@@ -7,17 +7,31 @@
 		<form @submit.prevent class="calc-form">
 			<div class="calc-field">
 				<label style="width: 110px">单位</label>
-				<div class="calc-segmented">
-					<button type="button" :class="{ active: unit === 'mm' }" @click="changeUnit('mm')">mm</button>
-					<button type="button" :class="{ active: unit === 'mil' }" @click="changeUnit('mil')">mil</button>
+				<div class="unit-wrapper">
+					<div class="calc-segmented">
+						<button type="button" :class="{ active: unit === 'mm' }" @click="changeUnit('mm')">mm</button>
+						<button type="button" :class="{ active: unit === 'mil' }"
+							@click="changeUnit('mil')">mil</button>
+					</div>
+					<!-- <button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="readFromPcb"
+						style="left: calc(100% + 20px);" :title="!isPcb ? '需要在 PCB 界面才能应用' : ''">读取</button>
+					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="applyToPcb"
+						style="left: calc(100% + 70px);" :title="!isPcb ? '需要在 PCB 界面才能应用' : ''">应用</button> -->
+					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="readFromPcb"
+						style="left: calc(100% + 20px);" :title="!isPcb ? '暂未实现' : ''">读取</button>
+					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="applyToPcb"
+						style="left: calc(100% + 70px);" :title="!isPcb ? '暂未实现' : ''">应用</button>
+
 				</div>
+
 			</div>
 
 			<div class="calc-field">
 				<label style="width: 110px">模式</label>
 				<div class="calc-segmented">
 					<button type="button" :class="{ active: mode === 'width' }" @click="mode = 'width'">按线宽求电流</button>
-					<button type="button" :class="{ active: mode === 'current' }" @click="mode = 'current'">按电流求线宽</button>
+					<button type="button" :class="{ active: mode === 'current' }"
+						@click="mode = 'current'">按电流求线宽</button>
 				</div>
 			</div>
 
@@ -31,46 +45,35 @@
 
 			<div class="calc-field" v-if="mode === 'width'">
 				<label style="width: 110px">线宽</label>
-				<input
-					class="calc-input"
-					style="width: 120px"
-					type="number"
-					v-model.number="width"
-					step="0.001"
-					min="0"
-					:aria-label="`线宽 (${unit})`"
-				/>
+				<input class="calc-input" style="width: 120px" type="number" v-model.number="width" step="0.001" min="0"
+					:aria-label="`线宽 (${unit})`" />
 				<div class="calc-field-suffix" style="width: 40px">{{ unit }}</div>
 			</div>
 
 			<div class="calc-field" v-else>
 				<label style="width: 110px">目标电流</label>
-				<input class="calc-input" style="width: 120px" type="number" v-model.number="current" step="0.01" min="0" aria-label="目标电流 (A)" />
+				<input class="calc-input" style="width: 120px" type="number" v-model.number="current" step="0.01"
+					min="0" aria-label="目标电流 (A)" />
 				<div class="calc-field-suffix" style="width: 40px">A</div>
 			</div>
 
 			<div class="calc-field">
 				<label style="width: 110px">铜厚</label>
-				<select class="calc-select" style="width: 80px" v-model="copperOpt" :class="{ wide: copperOpt !== 'custom' }">
+				<select class="calc-select" style="width: 80px" v-model="copperOpt"
+					:class="{ wide: copperOpt !== 'custom' }">
 					<option value="1oz">1oz (默认 外层)</option>
 					<option value="0.5oz">0.5oz (默认 内层)</option>
 					<option value="custom">自定义</option>
 				</select>
-				<input
-					v-if="copperOpt === 'custom'"
-					class="calc-input small"
-					type="number"
-					v-model.number="customCopper"
-					step="0.01"
-					min="0"
-					:aria-label="'自定义铜厚 (oz)'"
-				/>
+				<input v-if="copperOpt === 'custom'" class="calc-input small" type="number"
+					v-model.number="customCopper" step="0.01" min="0" :aria-label="'自定义铜厚 (oz)'" />
 				<div class="calc-field-suffix" style="width: 40px" v-if="copperOpt === 'custom'">oz</div>
 			</div>
 
 			<div class="calc-field">
 				<label style="width: 110px">允许温升</label>
-				<input class="calc-input" style="width: 120px" type="number" v-model.number="deltaT" step="0.1" min="0" aria-label="允许温升 (°C)" />
+				<input class="calc-input" style="width: 120px" type="number" v-model.number="deltaT" step="0.1" min="0"
+					aria-label="允许温升 (°C)" />
 				<div class="calc-field-suffix" style="width: 40px">°C</div>
 			</div>
 		</form>
@@ -79,7 +82,8 @@
 			<div v-if="error" class="error">{{ error }}</div>
 			<div v-else class="calc-result-card" style="padding: 8px">
 				<div class="calc-result-value">
-					<span class="calc-result-number">{{ resultDisplay }}</span> <span class="calc-result-unit">{{ resultUnit }}</span>
+					<span class="calc-result-number">{{ resultDisplay }}</span> <span class="calc-result-unit">{{
+						resultUnit }}</span>
 				</div>
 				<div class="calc-result-note">基于 IPC-2221 经验公式 <br />嘉立创默认外层铜厚1oz，内层0.5oz</div>
 			</div>
@@ -88,9 +92,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
-import { MIL_TO_MM, MM_TO_MIL } from '../utils/utils';
+import { isEDA, isPCB, MIL_TO_MM, MM_TO_MIL } from '../utils/utils';
 import { DEFAULT_0_5OZ_MM, DEFAULT_1OZ_MM, DEFAULT_MANUFACTURABLE_MIN_MM, calcTraceCurrent, solveWidthFromCurrent } from '../utils/wire';
 
 const unit = ref<'mm' | 'mil'>('mm');
@@ -102,6 +106,8 @@ const current = ref<number | null>(1);
 const copperOpt = ref<'1oz' | '0.5oz' | 'custom'>('1oz');
 const customCopper = ref<number | null>(null);
 const deltaT = ref<number | null>(30);
+
+const isPcb = ref(false);
 
 const changeUnit = (newUnit: 'mm' | 'mil') => {
 	if (newUnit === unit.value) return;
@@ -182,18 +188,18 @@ const recommendedWidth = computed(() => {
 	return Math.max(DEFAULT_MANUFACTURABLE_MIN_MM, r.width_mm);
 });
 
-const recommendedWidthDisplay = computed(() => {
-	if (!recommendedWidth.value) return '';
-	return unit.value === 'mm' ? `${recommendedWidth.value.toFixed(3)} mm` : `${(recommendedWidth.value * MM_TO_MIL).toFixed(2)} mil`;
-});
+const readFromPcb = () => {
 
-const applyRecommended = () => {
-	if (!recommendedWidth.value) return;
-	const w_mm = recommendedWidth.value;
-	width.value = unit.value === 'mm' ? w_mm : w_mm * MM_TO_MIL;
-	mode.value = 'width';
+};
+const applyToPcb = () => {
+
 };
 
+onMounted(async () => {
+	if (isEDA) {
+		// isPcb.value = await isPCB();
+	}
+});
 // SVG preview removed
 </script>
 
@@ -279,5 +285,23 @@ const applyRecommended = () => {
 
 	@include hide-number-input-controls;
 	@include reduced-motion;
+}
+
+.unit-wrapper {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.apply-pcb-btn {
+	@include calc-button-primary;
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	padding: 6px 10px;
+	font-size: 12px;
+	white-space: nowrap;
+	z-index: 5;
 }
 </style>

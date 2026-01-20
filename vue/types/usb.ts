@@ -47,7 +47,7 @@ export const usbVariantMap: Record<USBMountType, Record<USBVersion, Record<USBGe
 
 /**
  * 为连接器的引脚创建 NetPort/NetFlag 和零长度连线，返回创建的 primitiveIds 列表
- * @param pins 引脚信息数组，包含 { x, y, name, rotation }
+ * @param pins - 引脚信息数组，包含 `{ x, y, name, rotation }`
  */
 export const createConnectorPinNets = async (pins: Array<{ x: number; y: number; name: string; rotation: number }>): Promise<string[]> => {
 	const primitiveIds: string[] = [];
@@ -55,6 +55,13 @@ export const createConnectorPinNets = async (pins: Array<{ x: number; y: number;
 		pins.map(async (pin) => {
 			try {
 				let pinName = pin.name;
+				// 规则：如果名称结尾是 + 则替换为 '_'；如果结尾是 - 则替换为 '_N'
+				if (pinName?.endsWith('+')) {
+					pinName = pinName.slice(0, -1) + '_P';
+				} else if (pinName?.endsWith('-')) {
+					pinName = pinName.slice(0, -1) + '_N';
+				}
+
 				if (pinName?.includes('SH') || pinName?.includes('GND') || pinName?.includes('MH') || /^\d+$/.test(pinName)) {
 					pinName = 'GND';
 				} else if (pinName?.includes('SBU')) {
