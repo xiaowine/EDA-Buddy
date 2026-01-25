@@ -110,7 +110,7 @@ export function generateStandardValues(series: ResistorSeries, minDecade: number
 		});
 		baseValues = Array.from(set).sort((a, b) => a - b);
 	} else {
-		baseValues = [...standardBaseValues[series]];
+		baseValues = standardBaseValues[series];
 	}
 
 	const result: number[] = [];
