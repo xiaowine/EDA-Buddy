@@ -129,6 +129,22 @@ export function findClosestStandardValue(target: number, standardValues: number[
 	return closest;
 }
 
+// 生成常见的非标准阻值（补充 E 系列未覆盖但市场常见的值）
+function generateCommonNonStandardValues(minDecade: number, maxDecade: number): number[] {
+	// 常见的非 E 系列基础值（在 [1, 10) 范围内）
+	// 例如 1.5（对应 15Ω, 150Ω, 1.5kΩ, 15kΩ, 150kΩ, 1.5MΩ）
+	const commonBases = [1.5, 2.0, 3.0, 7.5, 9.0];
+
+	const result: number[] = [];
+
+	for (let decade = minDecade; decade <= maxDecade; decade++) {
+		const multiplier = Math.pow(10, decade);
+		commonBases.forEach((value) => result.push(value * multiplier));
+	}
+
+	return result;
+}
+
 // 反向枚举：解析式方法
 export function enumerateResistorsCombinations(vin: number, vtarget: number, config: EnumerationConfig): ResistorResult[] {
 	if (!vin || vin <= 0 || !vtarget || vtarget <= 0 || vtarget >= vin) {
@@ -137,24 +153,28 @@ export function enumerateResistorsCombinations(vin: number, vtarget: number, con
 
 	const targetRatio = vtarget / vin;
 	const standardValues = generateStandardValues(config.series, -1, 6).filter((val) => val >= config.minR && val <= config.maxR);
+	const commonValues = generateCommonNonStandardValues(-1, 6).filter((val) => val >= config.minR && val <= config.maxR);
+
+	// 合并标准值和常见非标准值，去重并排序
+	const allValues = [...new Set([...standardValues, ...commonValues])].sort((a, b) => a - b);
 
 	const results: ResistorResult[] = [];
 
 	// 解析式枚举：对每个 R1 计算理想 R2 并查找最近标准值
-	for (const r1 of standardValues) {
+	for (const r1 of allValues) {
 		const r2Ideal = (targetRatio * r1) / (1 - targetRatio);
 
 		if (r2Ideal <= 0 || r2Ideal < config.minR || r2Ideal > config.maxR) continue;
 
 		// 查找最接近的标准 R2 值（考虑上下邻值）
-		const r2Candidates = [findClosestStandardValue(r2Ideal, standardValues)];
+		const r2Candidates = [findClosestStandardValue(r2Ideal, allValues)];
 
 		// 添加相邻值以提高覆盖率
-		const idealIndex = standardValues.findIndex(
-			(val) => Math.abs(val - r2Ideal) === Math.abs(findClosestStandardValue(r2Ideal, standardValues) - r2Ideal),
+		const idealIndex = allValues.findIndex(
+			(val) => Math.abs(val - r2Ideal) === Math.abs(findClosestStandardValue(r2Ideal, allValues) - r2Ideal),
 		);
-		if (idealIndex > 0) r2Candidates.push(standardValues[idealIndex - 1]);
-		if (idealIndex < standardValues.length - 1) r2Candidates.push(standardValues[idealIndex + 1]);
+		if (idealIndex > 0) r2Candidates.push(allValues[idealIndex - 1]);
+		if (idealIndex < allValues.length - 1) r2Candidates.push(allValues[idealIndex + 1]);
 
 		for (const r2 of [...new Set(r2Candidates)]) {
 			if (r2 < config.minR || r2 > config.maxR) continue;
