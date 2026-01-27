@@ -105,7 +105,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import DiffPairTable from '../components/DiffPairTable.vue';
 import type { TableAction, TableColumn } from '../components/DiffPairTable.vue';
-import { Component, EasyEDANetlist, PassiveComponentPair } from '../types/netlist';
+import { EasyEDANetlist, PassiveComponentPair } from '../types/netlist';
 import { findSingleNetPassivesByPairs, identifyNewDiffPairs, test } from '../utils/diffpair';
 import { isEDA, isPCB, isSCH } from '../utils/utils';
 
