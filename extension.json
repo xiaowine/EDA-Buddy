@@ -6,7 +6,7 @@
 	"version": "0.0.2",
 	"publisher": "xiao_wine",
 	"engines": {
-		"eda": "^2.3.0"
+		"eda": "^3.0.0"
 	},
 	"license": "GPL v3",
 	"repository": {

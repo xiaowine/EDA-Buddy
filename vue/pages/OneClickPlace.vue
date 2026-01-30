@@ -192,6 +192,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { alignAndConnectComponents, isEDA, isSCH } from '../utils/utils';
+import { createAutoCancel } from '../utils/autoCancel';
 import { placeTwoEndedComponent } from '../utils/oneclickplace';
 import type { PlaceTwoEndedResult } from '../utils/oneclickplace';
 import { NetFLAG, NetPort } from '../types/oneclickplace';
@@ -460,15 +461,18 @@ const handlePlacement = async () => {
 
     await eda.sys_IFrame.hideIFrame('OneClickPlace');
     eda.sys_Message.showToastMessage('请在原理图上左键点击选择放置位置，20s后自动取消', ESYS_ToastMessageType.INFO, 5);
+
+    const autoCancel = createAutoCancel(async () => {
+        loading.value = false;
+        eda.sch_Event.removeEventListener("OneClickPlace");
+        try { await eda.sys_IFrame.showIFrame("OneClickPlace"); } catch (e) { }
+        eda.sys_Message.showToastMessage('放置超时已取消', ESYS_ToastMessageType.ERROR, 5);
+    }, 20000);
+
     eda.sch_Event.addMouseEventListener("OneClickPlace", 'all', async (eventType: ESCH_MouseEventType) => {
         console.warn("mouse event", eventType);
-        setTimeout(async () => {
-            if (!loading.value) return;
-            loading.value = false;
-            eda.sch_Event.removeEventListener("OneClickPlace");
-            eda.sys_Message.showToastMessage('放置超时已取消', ESYS_ToastMessageType.ERROR, 5);
-        }, 20000);
         if (eventType === ESCH_MouseEventType.SELECTED) {
+            autoCancel.start();
             loading.value = true;
             eda.sys_Message.showToastMessage('开始放置，请稍后', ESYS_ToastMessageType.INFO, 3);
             const libraryUuid = await eda.lib_LibrariesList.getSystemLibraryUuid();
@@ -496,20 +500,18 @@ const handlePlacement = async () => {
                 console.error('无法获取系统库 UUID，放置失败');
             }
 
+            // 完成放置：取消超时并清理
+            autoCancel.cancel();
             loading.value = false;
+            eda.sch_Event.removeEventListener("OneClickPlace");
+            await eda.sys_IFrame.showIFrame('OneClickPlace');
         } else if (eventType === ESCH_MouseEventType.CLEAR_SELECTED) {
             eda.sys_Message.showToastMessage('放置已取消', ESYS_ToastMessageType.INFO, 3);
         }
-
-        await eda.sys_IFrame.closeIFrame('OneClickPlace');
     }, true);
 
-    setTimeout(async () => {
-        loading.value = false;
-        eda.sch_Event.removeEventListener("OneClickPlace");
-        await eda.sys_IFrame.showIFrame("OneClickPlace");
-        eda.sys_Message.showToastMessage('放置超时已取消', ESYS_ToastMessageType.ERROR, 5);
-    }, 20000);
+    // 启动超时保护
+    autoCancel.start();
 
 };
 

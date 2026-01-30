@@ -15,14 +15,11 @@
 					</div>
 
 
-					<!-- <button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="readFromPcb"
-						style="left: calc(100% + 20px);" :title="!isPcb ? '需要在 PCB 界面才能应用' : ''">读取</button>
-					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="applyToPcb"
-						style="left: calc(100% + 70px);" :title="!isPcb ? '需要在 PCB 界面才能应用' : ''">应用</button> -->
-					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="readFromPcb"
-						style="left: calc(100% + 20px);" :title="!isPcb ? '暂未实现' : ''">读取</button>
-					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="applyToPcb"
-						style="left: calc(100% + 70px);" :title="!isPcb ? '暂未实现' : ''">应用</button>
+					<button type="button" :disabled="!isPcb" class="apply-pcb-btn"
+						@click="mode === 'd2i' ? fromToPcb('fromPcb') : fromToPcb('toPcb')" :aria-disabled="!isPcb"
+						:title="!isPcb ? '需要在 PCB 界面才能应用' : (mode === 'd2i' ? '从 PCB 读取选中过孔' : '计算结果应用到 PCB')">
+						{{ mode === 'd2i' ? 'PCB读取过孔宽度' : '计算结果应用到PCB' }}
+					</button>
 				</div>
 			</div>
 			<div class="calc-field">
@@ -79,6 +76,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import { isEDA, isPCB, MIL_TO_MM, MM_TO_MIL } from '../utils/utils';
 import { calculateViaCurrent, calculateViaDiameterFromCurrent } from '../utils/via';
+import { createAutoCancel } from '../utils/autoCancel';
 
 const unit = ref<'mm' | 'mil'>('mm');
 const d = ref<number | null>(0.3); // 过孔内径，默认 0.3 mm
@@ -86,7 +84,10 @@ const t = ref<number | null>(0.018); // 镀层厚度，默认 0.018 mm
 const deltaT = ref<number | null>(30); // 允许温升，默认 30°C
 const isPcb = ref(false);
 const mode = ref<'d2i' | 'i2d'>('d2i');
-const targetCurrent = ref<number | null>(0.5);
+const targetCurrent = ref<number | null>(3);
+
+const loading = ref(false);
+
 /**
  * 切换单位并将已有输入值换算到目标单位
  * newUnit: 目标单位（'mm' 或 'mil'）
@@ -129,19 +130,65 @@ const emit = defineEmits<{
 	(e: 'apply-to-pcb', payload: { d_mm: number | null; t_mm: number | null; deltaT: number | null }): void;
 }>();
 
-const readFromPcb = () => {
-	// const d_mm = toMM(d.value);
-	// const t_mm = toMM(t.value);
-	// const dt = deltaT.value === null || isNaN(deltaT.value) ? null : deltaT.value;
-	// emit('apply-to-pcb', { d_mm, t_mm, deltaT: dt });
-};
+const fromToPcb = async (pcbMode: string) => {
+	await eda.sys_IFrame.hideIFrame("Via");
+	eda.sys_Message.showToastMessage('请选择 PCB 中的导线,选择完成后按 Enter 键确认', ESYS_ToastMessageType.INFO, 5);
 
-const applyToPcb = () => {
-	// const d_mm = toMM(d.value);
-	// const t_mm = toMM(t.value);
-	// const dt = deltaT.value === null || isNaN(deltaT.value) ? null : deltaT.value;
-	// emit('apply-to-pcb', { d_mm, t_mm, deltaT: dt });
-};
+	const key = ["Enter"] as unknown as TSYS_ShortcutKeys;
+	await eda.sys_ShortcutKey.unregisterShortcutKey(key);
+
+	const autoCancel = createAutoCancel(async () => {
+		loading.value = false;
+		try { await eda.sys_ShortcutKey.unregisterShortcutKey(key); } catch (e) { }
+		try { await eda.sys_IFrame.showIFrame("Via"); } catch (e) { }
+		eda.sys_Message.showToastMessage('读取/应用已取消', ESYS_ToastMessageType.ERROR, 5);
+	}, 20000);
+
+	await eda.sys_ShortcutKey.registerShortcutKey(key, "Via", async () => {
+		console.log("Shortcut Key Pressed: Enter");
+		autoCancel.start();
+		loading.value = true;
+		const selectedObjects = await eda.pcb_SelectControl.getAllSelectedPrimitives();
+
+		const vias = Array.from(selectedObjects).filter(
+			(el: IPCB_Primitive) => el.getState_PrimitiveType() === EPCB_PrimitiveType.VIA
+		) as unknown as IPCB_PrimitiveVia[];
+		let len = vias.length;
+		if (len > 0) {
+			if (pcbMode === "fromPcb") {
+				const diameters_mm = vias.map(via => via.getState_HoleDiameter() * MIL_TO_MM);
+				// 计算平均值
+				const sum = diameters_mm.reduce((acc, val) => acc + val, 0);
+				const avg = sum / len;
+				// 根据当前单位更新 d.value
+				d.value = unit.value === 'mm' ? Number(avg.toFixed(3)) : Number((avg * MM_TO_MIL).toFixed(2));
+				eda.sys_Message.showToastMessage(`已从选中的 ${len} 个过孔读取内径，平均值为 ${d.value} ${unit.value}`, ESYS_ToastMessageType.SUCCESS, 5);
+
+			} else {
+				const tasks = vias.map(element => {
+					const width = Number((result.value! * MM_TO_MIL).toFixed(2));
+					element.setState_HoleDiameter(width);
+					element.setState_Diameter(width + 9);
+					return element.done();
+				});
+				await Promise.all(tasks);
+				eda.sys_Message.showToastMessage(`已将计算得到的过孔内径应用到选中的 ${len} 个过孔`, ESYS_ToastMessageType.SUCCESS, 3);
+			}
+		} else {
+			eda.sys_Message.showToastMessage('未选择任何导线', ESYS_ToastMessageType.WARNING, 5);
+		}
+
+		// 正常完成：取消定时器并清理
+		autoCancel.cancel();
+		loading.value = false;
+		try { await eda.sys_ShortcutKey.unregisterShortcutKey(key); } catch (e) { }
+		try { await eda.sys_IFrame.showIFrame("Via"); } catch (e) { }
+	}, [4], [1, 2, 3, 4, 5, 6])
+
+	// 启动超时保护
+	autoCancel.start();
+
+}
 
 const error = computed(() => {
 	// 模式不同，所需字段不同
@@ -200,9 +247,23 @@ watch([() => mode.value, () => targetCurrent.value, () => t.value, () => deltaT.
 	d.value = unit.value === 'mm' ? Number(d_mm.toFixed(3)) : Number((d_mm * MM_TO_MIL).toFixed(3));
 });
 
+watch(
+	loading,
+	(newVal) => {
+		if (isEDA) {
+			if (newVal) {
+				eda.sys_LoadingAndProgressBar.showLoading();
+			} else {
+				eda.sys_LoadingAndProgressBar.destroyLoading();
+			}
+		}
+	},
+	{ flush: 'sync' },
+);
+
 onMounted(async () => {
 	if (isEDA) {
-		// isPcb.value = await isPCB()
+		isPcb.value = await isPCB()
 	}
 });
 </script>
@@ -300,6 +361,7 @@ onMounted(async () => {
 	@include calc-button-primary;
 	position: absolute;
 	top: 50%;
+	right: -140px;
 	transform: translateY(-50%);
 	padding: 6px 10px;
 	font-size: 12px;

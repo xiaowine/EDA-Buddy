@@ -92,6 +92,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import { isEDA, isPCB, MIL_TO_MM, MM_TO_MIL } from '../utils/utils';
 import { DEFAULT_0_5OZ_MM, DEFAULT_1OZ_MM, calcTraceCurrent, solveWidthFromCurrent } from '../utils/wire';
+import { createAutoCancel } from '../utils/autoCancel';
 
 const unit = ref<'mm' | 'mil'>('mm');
 const mode = ref<'width' | 'current'>('width');
@@ -183,15 +184,17 @@ const fromToPcb = async (pcbMode: string) => {
 
 	const key = ["Enter"] as unknown as TSYS_ShortcutKeys;
 	await eda.sys_ShortcutKey.unregisterShortcutKey(key);
+
+	const autoCancel = createAutoCancel(async () => {
+		loading.value = false;
+		try { await eda.sys_ShortcutKey.unregisterShortcutKey(key); } catch (e) { }
+		try { await eda.sys_IFrame.showIFrame("Wire"); } catch (e) { }
+		eda.sys_Message.showToastMessage('读取/应用已取消', ESYS_ToastMessageType.ERROR, 5);
+	}, 20000);
+
 	await eda.sys_ShortcutKey.registerShortcutKey(key, "Wire", async () => {
 		console.log("Shortcut Key Pressed: Enter");
-		setTimeout(async () => {
-			if (!loading.value) return;
-			loading.value = false;
-			await eda.sys_ShortcutKey.unregisterShortcutKey(key);
-			await eda.sys_IFrame.showIFrame("Wire");
-			eda.sys_Message.showToastMessage('读取/应用已取消', ESYS_ToastMessageType.ERROR, 5);
-		}, 20000);
+		autoCancel.start();
 		loading.value = true;
 		const selectedObjects = await eda.pcb_SelectControl.getAllSelectedPrimitives();
 
@@ -220,10 +223,8 @@ const fromToPcb = async (pcbMode: string) => {
 
 			} else {
 				const tasks = lines.map(element => {
-					console.log(result.value);
 					const width = Number((result.value * MM_TO_MIL).toFixed(2));
 					element.setState_LineWidth(width);
-					console.log(`Set line width to ${width}`);
 					return element.done();
 				});
 				await Promise.all(tasks);
@@ -232,17 +233,16 @@ const fromToPcb = async (pcbMode: string) => {
 		} else {
 			eda.sys_Message.showToastMessage('未选择任何导线', ESYS_ToastMessageType.WARNING, 5);
 		}
+
+		// 正常完成：取消定时器并清理
+		autoCancel.cancel();
 		loading.value = false;
-		await eda.sys_ShortcutKey.unregisterShortcutKey(key);
-		await eda.sys_IFrame.showIFrame("Wire");
+		try { await eda.sys_ShortcutKey.unregisterShortcutKey(key); } catch (e) { }
+		try { await eda.sys_IFrame.showIFrame("Wire"); } catch (e) { }
 	}, [4], [1, 2, 3, 4, 5, 6])
 
-	setTimeout(async () => {
-		loading.value = false;
-		await eda.sys_ShortcutKey.unregisterShortcutKey(key);
-		await eda.sys_IFrame.showIFrame("Wire");
-		eda.sys_Message.showToastMessage('读取/应用已取消', ESYS_ToastMessageType.ERROR, 5);
-	}, 20000);
+	// 启动超时保护
+	autoCancel.start();
 
 }
 watch(
