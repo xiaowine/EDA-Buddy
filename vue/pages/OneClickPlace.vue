@@ -230,7 +230,6 @@ const usbMountType = ref<USBMountType>('through'); // through (插件) / smd (�
 const usbVersion = ref<USBVersion>('usb2'); // usb2 / usb3
 // usbVariant 存储所选变体的 LCSC ID
 const usbVariant = ref<string>('');
-const waitClick = ref<boolean>(false);
 const loading = ref(false);
 /**
  * 验证输入
@@ -463,6 +462,12 @@ const handlePlacement = async () => {
     eda.sys_Message.showToastMessage('请在原理图上左键点击选择放置位置，20s后自动取消', ESYS_ToastMessageType.INFO, 5);
     eda.sch_Event.addMouseEventListener("OneClickPlace", 'all', async (eventType: ESCH_MouseEventType) => {
         console.warn("mouse event", eventType);
+        setTimeout(async () => {
+            if (!loading.value) return;
+            loading.value = false;
+            eda.sch_Event.removeEventListener("OneClickPlace");
+            eda.sys_Message.showToastMessage('放置超时已取消', ESYS_ToastMessageType.ERROR, 5);
+        }, 20000);
         if (eventType === ESCH_MouseEventType.SELECTED) {
             loading.value = true;
             eda.sys_Message.showToastMessage('开始放置，请稍后', ESYS_ToastMessageType.INFO, 3);
@@ -491,7 +496,6 @@ const handlePlacement = async () => {
                 console.error('无法获取系统库 UUID，放置失败');
             }
 
-            waitClick.value = false;
             loading.value = false;
         } else if (eventType === ESCH_MouseEventType.CLEAR_SELECTED) {
             eda.sys_Message.showToastMessage('放置已取消', ESYS_ToastMessageType.INFO, 3);
@@ -501,13 +505,12 @@ const handlePlacement = async () => {
     }, true);
 
     setTimeout(async () => {
-        if (!waitClick.value) return;
         loading.value = false;
         eda.sch_Event.removeEventListener("OneClickPlace");
+        await eda.sys_IFrame.showIFrame("OneClickPlace");
         eda.sys_Message.showToastMessage('放置超时已取消', ESYS_ToastMessageType.ERROR, 5);
     }, 20000);
 
-    waitClick.value = true;
 };
 
 /**

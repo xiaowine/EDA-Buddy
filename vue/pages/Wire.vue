@@ -13,15 +13,11 @@
 						<button type="button" :class="{ active: unit === 'mil' }"
 							@click="changeUnit('mil')">mil</button>
 					</div>
-					<!-- <button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="readFromPcb"
-						style="left: calc(100% + 20px);" :title="!isPcb ? '需要在 PCB 界面才能应用' : ''">读取</button>
-					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="applyToPcb"
-						style="left: calc(100% + 70px);" :title="!isPcb ? '需要在 PCB 界面才能应用' : ''">应用</button> -->
-					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="readFromPcb"
-						style="left: calc(100% + 20px);" :title="!isPcb ? '暂未实现' : ''">读取</button>
-					<button type="button" :disabled="!isPcb" class="apply-pcb-btn" @click="applyToPcb"
-						style="left: calc(100% + 70px);" :title="!isPcb ? '暂未实现' : ''">应用</button>
-
+					<button type="button" :disabled="!isPcb" class="apply-pcb-btn"
+						@click="mode === 'width' ? fromToPcb('fromPcb') : fromToPcb('toPcb')" :aria-disabled="!isPcb"
+						:title="!isPcb ? '需要在 PCB 界面才能应用' : (mode === 'width' ? '从 PCB 读取选中导线宽度' : '将计算结果应用到 PCB')">
+						{{ mode === 'width' ? 'PCB读取导线宽度' : '计算结果应用到PCB' }}
+					</button>
 				</div>
 
 			</div>
@@ -95,7 +91,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { isEDA, isPCB, MIL_TO_MM, MM_TO_MIL } from '../utils/utils';
-import { DEFAULT_0_5OZ_MM, DEFAULT_1OZ_MM, DEFAULT_MANUFACTURABLE_MIN_MM, calcTraceCurrent, solveWidthFromCurrent } from '../utils/wire';
+import { DEFAULT_0_5OZ_MM, DEFAULT_1OZ_MM, calcTraceCurrent, solveWidthFromCurrent } from '../utils/wire';
 
 const unit = ref<'mm' | 'mil'>('mm');
 const mode = ref<'width' | 'current'>('width');
@@ -107,6 +103,7 @@ const copperOpt = ref<'1oz' | '0.5oz' | 'custom'>('1oz');
 const customCopper = ref<number | null>(null);
 const deltaT = ref<number | null>(30);
 
+const loading = ref(false);
 const isPcb = ref(false);
 
 const changeUnit = (newUnit: 'mm' | 'mil') => {
@@ -156,7 +153,7 @@ const error = computed(() => {
 const isExternal = computed(() => layer.value === 'outer');
 
 const result = computed(() => {
-	if (error.value) return null;
+	if (error.value) return -1;
 	const thick_mm = copperThickness.value;
 	const dT = deltaT.value as number;
 	if (mode.value === 'width') {
@@ -165,42 +162,109 @@ const result = computed(() => {
 	} else {
 		const I = current.value as number;
 		const solver = solveWidthFromCurrent(I, thick_mm, dT, isExternal.value, { minWidthMm: 1e-4, maxWidthMm: 100, tol: 1e-6 });
-		if (!solver.converged || solver.width_mm === null) return { solverFailed: true } as any;
-		return { width_mm: solver.width_mm } as any;
+		if (!solver.converged || solver.width_mm === null) return -1;
+		return solver.width_mm;
 	}
 });
 
 const resultDisplay = computed(() => {
 	if (result.value === null) return '--';
-	if (mode.value === 'width') return (result.value as number).toFixed(2);
-	const r = result.value as any;
-	if (r.solverFailed) return '无法求解';
-	const w = r.width_mm as number;
-	return unit.value === 'mm' ? w.toFixed(3) : (w * MM_TO_MIL).toFixed(2);
+	if (mode.value === 'width') return (result.value).toFixed(2);
+	if (result.value === -1) return '无法求解';
+	return unit.value === 'mm' ? result.value.toFixed(3) : (result.value * MM_TO_MIL).toFixed(2);
 });
 
 const resultUnit = computed(() => (mode.value === 'width' ? 'A' : unit.value));
 
-const recommendedWidth = computed(() => {
-	if (mode.value === 'width') return null;
-	const r = result.value as any;
-	if (!r || r.solverFailed || r.width_mm === null) return null;
-	return Math.max(DEFAULT_MANUFACTURABLE_MIN_MM, r.width_mm);
-});
 
-const readFromPcb = () => {
+const fromToPcb = async (pcbMode: string) => {
+	await eda.sys_IFrame.hideIFrame("Wire");
+	eda.sys_Message.showToastMessage('请选择 PCB 中的导线,选择完成后按 Enter 键确认', ESYS_ToastMessageType.INFO, 5);
 
-};
-const applyToPcb = () => {
+	const key = ["Enter"] as unknown as TSYS_ShortcutKeys;
+	await eda.sys_ShortcutKey.unregisterShortcutKey(key);
+	await eda.sys_ShortcutKey.registerShortcutKey(key, "Wire", async () => {
+		console.log("Shortcut Key Pressed: Enter");
+		setTimeout(async () => {
+			if (!loading.value) return;
+			loading.value = false;
+			await eda.sys_ShortcutKey.unregisterShortcutKey(key);
+			await eda.sys_IFrame.showIFrame("Wire");
+			eda.sys_Message.showToastMessage('读取/应用已取消', ESYS_ToastMessageType.ERROR, 5);
+		}, 20000);
+		loading.value = true;
+		const selectedObjects = await eda.pcb_SelectControl.getAllSelectedPrimitives();
 
-};
+		const lines = Array.from(selectedObjects).filter(
+			(el: IPCB_Primitive) => el.getState_PrimitiveType() === EPCB_PrimitiveType.LINE
+		) as unknown as IPCB_PrimitiveLine[];
+		let len = lines.length;
+		if (len > 0) {
+			if (pcbMode === "fromPcb") {
+				let allWidths = len > 0 ? lines.reduce((sum, line) => sum + line.getState_LineWidth(), 0) : 0;
+
+				const innerLen = lines.filter(line => line.getState_Layer() === EPCB_LayerId.BOTTOM || line.getState_Layer() === EPCB_LayerId.TOP).length;
+
+				if (unit.value === 'mil') {
+					width.value = Number((allWidths / len).toFixed(2));
+				} else {
+					width.value = Number((allWidths / len * MIL_TO_MM).toFixed(2));
+				}
+				mode.value = 'width';
+				if (len - innerLen >= innerLen) {
+					layer.value = 'outer';
+				} else {
+					layer.value = 'inner';
+				}
+				eda.sys_Message.showToastMessage(`已从选中的 ${len} 条导线中读取平均线宽`, ESYS_ToastMessageType.SUCCESS, 3);
+
+			} else {
+				const tasks = lines.map(element => {
+					console.log(result.value);
+					const width = Number((result.value * MM_TO_MIL).toFixed(2));
+					element.setState_LineWidth(width);
+					console.log(`Set line width to ${width}`);
+					return element.done();
+				});
+				await Promise.all(tasks);
+				eda.sys_Message.showToastMessage(`已将计算得到的线宽应用到选中的 ${len} 条导线`, ESYS_ToastMessageType.SUCCESS, 3);
+			}
+		} else {
+			eda.sys_Message.showToastMessage('未选择任何导线', ESYS_ToastMessageType.WARNING, 5);
+		}
+		loading.value = false;
+		await eda.sys_ShortcutKey.unregisterShortcutKey(key);
+		await eda.sys_IFrame.showIFrame("Wire");
+	}, [4], [1, 2, 3, 4, 5, 6])
+
+	setTimeout(async () => {
+		loading.value = false;
+		await eda.sys_ShortcutKey.unregisterShortcutKey(key);
+		await eda.sys_IFrame.showIFrame("Wire");
+		eda.sys_Message.showToastMessage('读取/应用已取消', ESYS_ToastMessageType.ERROR, 5);
+	}, 20000);
+
+}
+watch(
+	loading,
+	(newVal) => {
+		if (isEDA) {
+			if (newVal) {
+				eda.sys_LoadingAndProgressBar.showLoading();
+			} else {
+				eda.sys_LoadingAndProgressBar.destroyLoading();
+			}
+		}
+	},
+	{ flush: 'sync' },
+);
 
 onMounted(async () => {
 	if (isEDA) {
-		// isPcb.value = await isPCB();
+		isPcb.value = await isPCB();
 	}
 });
-// SVG preview removed
+
 </script>
 
 <style scoped lang="scss">
@@ -298,6 +362,7 @@ onMounted(async () => {
 	@include calc-button-primary;
 	position: absolute;
 	top: 50%;
+	right: -150px;
 	transform: translateY(-50%);
 	padding: 6px 10px;
 	font-size: 12px;
