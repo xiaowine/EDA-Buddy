@@ -169,6 +169,7 @@ const fromToPcb = async (pcbMode: string) => {
 					const width = Number((result.value! * MM_TO_MIL).toFixed(2));
 					element.setState_HoleDiameter(width);
 					element.setState_Diameter(width + 9);
+					element.setState_SolderMaskExpansion({ topSolderMask: -1000 });
 					return element.done();
 				});
 				await Promise.all(tasks);
