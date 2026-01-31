@@ -107,7 +107,7 @@ import DiffPairTable from '../components/DiffPairTable.vue';
 import type { TableAction, TableColumn } from '../components/DiffPairTable.vue';
 import { EasyEDANetlist, PassiveComponentPair } from '../types/netlist';
 import { findSingleNetPassivesByPairs, identifyNewDiffPairs, test } from '../utils/diffpair';
-import { isEDA, isPCB, isSCH } from '../utils/utils';
+import { isEDA, isPCB } from '../utils/utils';
 
 const loading = ref(false);
 type IPCB_DifferentialPairItem = { name: string; positiveNet: string; negativeNet: string };
