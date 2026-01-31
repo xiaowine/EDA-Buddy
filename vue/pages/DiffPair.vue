@@ -186,11 +186,13 @@ watch(
 );
 
 onMounted(async () => {
-	if (!(await isPCB())) {
-		eda.sys_Message.showToastMessage('当前不在PCB编辑环境中，差分对管理不可用', ESYS_ToastMessageType.ERROR, 5);
-		return;
-	} else {
-		refreshDiffPairs();
+	if (isEDA) {
+		if (!(await isPCB())) {
+			eda.sys_Message.showToastMessage('当前不在PCB编辑环境中，差分对管理不可用', ESYS_ToastMessageType.ERROR, 5);
+			return;
+		} else {
+			refreshDiffPairs();
+		}
 	}
 });
 
