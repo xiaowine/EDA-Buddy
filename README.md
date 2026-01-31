@@ -34,17 +34,32 @@ EDA Buddy 是为嘉立创 EDA 开发的设计辅助插件，提供常用电气�
 ![alt text](docs/images/DiffPair1.png)
 ![alt text](docs/images/DiffPair2.png)
 ![alt text](docs/images/DiffPair3.png)
+
+---
+
 ![alt text](docs/images/Inductor1.png)
 ![alt text](docs/images/Inductor2.png)
+
+---
+
 ![alt text](docs/images/OneClickPlace1.png)
 ![alt text](docs/images/OneClickPlace2.png)
 ![alt text](docs/images/OneClickPlace3.png)
 ![alt text](docs/images/OneClickPlace4.png)
+
+---
+
 ![alt text](docs/images/VDivision1.png)
 ![alt text](docs/images/VDivision2.png)
 ![alt text](docs/images/VDivision3.png)
+
+---
+
 ![alt text](docs/images/Via1.png)
 ![alt text](docs/images/Via2.png)
+
+---
+
 ![alt text](docs/images/Wire1.png)
 ![alt text](docs/images/Wire2.png)
 
