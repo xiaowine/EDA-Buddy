@@ -5,7 +5,7 @@ EDA Buddy 是为嘉立创 EDA 开发的设计辅助插件，提供常用电气�
 **主要功能**
 
 - PCB 线宽与过孔尺寸计算
-- 在 PCB 界面读取并应用线宽与过孔（尚未实现）
+- 在 PCB 界面读取并应用线宽与过孔
 - 分压计算：根据电压计算分压电阻；根据电阻计算分压电压
 - 一键在原理图放置元件（受 EDA bug 限制，部分功能暂未实现）
 - 非隔离开关电源电感值计算，并提供商城搜索入口
@@ -45,7 +45,8 @@ EDA Buddy 是为嘉立创 EDA 开发的设计辅助插件，提供常用电气�
 ![alt text](docs/images/VDivision3.png)
 ![alt text](docs/images/Via1.png)
 ![alt text](docs/images/Via2.png)
-![alt text](docs/images/Wire.png)
+![alt text](docs/images/Wire1.png)
+![alt text](docs/images/Wire2.png)
 
 **贡献与反馈**
 
