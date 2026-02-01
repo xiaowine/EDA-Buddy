@@ -195,7 +195,6 @@ onMounted(async () => {
 		}
 	}
 });
-
 const applyDiffPairs = async () => {
 	console.log('应用差分对:', normalPairs.value);
 	if (!isEDA) return;

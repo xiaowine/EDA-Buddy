@@ -3,10 +3,11 @@ import { onMounted } from 'vue';
 
 import router from './router';
 import { isEDA } from './utils/utils';
+import * as extensionConfig from '../extension.json';
 
 onMounted(async () => {
 	if (isEDA) {
-		var page = eda.sys_Storage.getExtensionAllUserConfigs()['page123'];
+		var page = eda.sys_Storage.getExtensionAllUserConfigs()[extensionConfig.name]
 		if (typeof page === 'string' && page.length > 0) {
 			router.push({ name: page });
 		}

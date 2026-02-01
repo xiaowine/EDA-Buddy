@@ -1,10 +1,10 @@
-// import * as extensionConfig from '../extension.json';
+import * as extensionConfig from '../extension.json';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function activate(status?: 'onStartupFinished', arg?: string): void {}
 
 const openPage = async (name: string, width: number, height: number) => {
-	const config = await eda.sys_Storage.setExtensionAllUserConfigs({ 'page123': name });
+	const config = await eda.sys_Storage.setExtensionAllUserConfigs({ [extensionConfig.name]: name });
 	if (config) {
 		eda.sys_IFrame.openIFrame('/vue-dist/index.html', width, height, name);
 	}

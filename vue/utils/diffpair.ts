@@ -130,27 +130,19 @@ export const test = [
 export function identifyNewDiffPairs(
 	netList: string[],
 	existingPairs: IPCB_DifferentialPairItem[] = [],
-	positiveSuffixes: string[] = ['_P', '+', '_DP', 'P', '_H', '_DP', 'DP'],
-	negativeSuffixes: string[] = ['_N', '-', '_DN', 'N', '_L', '_DM', 'DM'],
+	positiveSuffixes: string[] = ['P', '+', 'DP', 'H', 'DP'],
+	negativeSuffixes: string[] = ['N', '-', 'DN', 'L', 'DM'],
 ): DiffPairResult {
-	// 动态构建正则表达式
-	const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	// 规范化并按长度降序排序，保证最长后缀优先匹配
-	const normalizeAndSort = (arr: string[]) => Array.from(new Set(arr.map((s) => s.toUpperCase().trim()))).sort((a, b) => b.length - a.length);
+	// 参考 identifyDiffPairsSimple 的后缀匹配策略：后缀可在任意位置出现，
+	// 但后缀之后必须是字符串结尾或非字母数字字符；优先匹配最长后缀。
+	const normalizeAndSort = (arr: string[]) =>
+		Array.from(new Set(arr.map((s) => (s || '').toUpperCase().trim()))).sort((a, b) => b.length - a.length);
 
 	const posSuffixesUpper = normalizeAndSort(positiveSuffixes);
 	const negSuffixesUpper = normalizeAndSort(negativeSuffixes);
 
-	// 用于构建正则（最长在前）
-	const allSuffixesSorted = [...posSuffixesUpper, ...negSuffixesUpper];
-	const suffixPattern: string = allSuffixesSorted.map(escapeRegex).join('|');
-
-	// 预建查找 Set，减少运行时 toUpperCase 调用
-	const posSuffixSet = new Set(posSuffixesUpper);
-	const negSuffixSet = new Set(negSuffixesUpper);
-
-	// 正则说明：^(主体名)(后缀)$  使用 'i' 忽略大小写
-	const regex = new RegExp(`^(.+?)(${suffixPattern})$`, 'i');
+	// const posSuffixSet = new Set(posSuffixesUpper);
+	// const negSuffixSet = new Set(negSuffixesUpper);
 
 	// --- 2. 查重缓存准备 ---
 	const existingPairNames: Set<string> = new Set(existingPairs.map((p) => p.name));
@@ -161,58 +153,72 @@ export function identifyNewDiffPairs(
 		occupiedNets.add(p.negativeNet);
 	});
 
-	const uniqueNetList: string[] = Array.from(new Set(netList));
+	const uniqueNetList: string[] = Array.from(new Set(netList)).filter(Boolean);
 	const potentialMap: Map<string, { origBase?: string; p?: string; n?: string }> = new Map();
 	const normalPairs: IPCB_DifferentialPairItem[] = [];
 	const duplicatedPairs: IPCB_DifferentialPairItem[] = [];
+
+	// 查找后缀在字符串中的出现（要求后缀后为字符串结尾或非字母数字）
+	const findSuffixOccurrence = (netU: string, suffixes: string[]) => {
+		for (const s of suffixes) {
+			if (!s) continue;
+			let start = 0;
+			while (true) {
+				const idx = netU.indexOf(s, start);
+				if (idx === -1) break;
+				const after = idx + s.length;
+				const afterChar = after < netU.length ? netU.charAt(after) : '';
+				const afterOk = after >= netU.length || !/[A-Z0-9]/i.test(afterChar);
+				if (afterOk) return { suffix: s, index: idx, length: s.length };
+				start = idx + 1;
+			}
+		}
+		return null;
+	};
 
 	// --- 3. 遍历并识别 ---
 	uniqueNetList.forEach((net) => {
 		if (!net || occupiedNets.has(net)) return;
 
-		const match = net.match(regex);
-		if (match) {
-			const baseName = match[1];
-			const suffix = match[2].toUpperCase();
+		const netStr = String(net);
+		const netU = netStr.toUpperCase();
 
-			// 规范化 key，避免大小写差异分组
-			const key = baseName.trim().toUpperCase();
+		const posFound = findSuffixOccurrence(netU, posSuffixesUpper);
+		const negFound = findSuffixOccurrence(netU, negSuffixesUpper);
 
-			if (!potentialMap.has(key)) {
-				potentialMap.set(key, { origBase: baseName });
-			}
-
+		if (posFound) {
+			const { index, length } = posFound;
+			const base = netStr.slice(0, index) + netStr.slice(index + length);
+			const key = (base || '').trim().toUpperCase();
+			if (!potentialMap.has(key)) potentialMap.set(key, { origBase: base });
 			const entry = potentialMap.get(key)!;
-
-			// 使用预建 Set 快速判断正负
-			const isPos = posSuffixSet.has(suffix);
-			const isNeg = negSuffixSet.has(suffix);
-
-			if (isPos) entry.p = net;
-			else if (isNeg) entry.n = net;
+			if (!entry.p) entry.p = netStr;
+		} else if (negFound) {
+			const { index, length } = negFound;
+			const base = netStr.slice(0, index) + netStr.slice(index + length);
+			const key = (base || '').trim().toUpperCase();
+			if (!potentialMap.has(key)) potentialMap.set(key, { origBase: base });
+			const entry = potentialMap.get(key)!;
+			if (!entry.n) entry.n = netStr;
 		}
 	});
 
 	// --- 4. 冲突处理与组装 ---
-	potentialMap.forEach((pair, key) => {
+	potentialMap.forEach((pair) => {
 		if (pair.p && pair.n) {
-			// 显示用名称优先使用首个原始形式，否则使用规范化 key
-			const displayBase = pair.origBase ?? key;
-			let finalName = displayBase;
+			const displayBase = pair.origBase ?? '';
+			let finalName = displayBase || pair.p.replace(/[^a-z0-9_\-]/gi, '_');
 			let starCount = 0;
 			let isDuplicated = false;
 
-			// 检查是否与已存在的差分对重名
 			if (existingPairNames.has(finalName)) {
 				isDuplicated = true;
-				// 差分对名称查重逻辑：最多加 5 个 *
 				while (existingPairNames.has(finalName)) {
 					if (starCount < 5) {
 						finalName += '*';
 						starCount++;
 					} else {
-						// 达到上限，仍然记录为重名差分对
-						finalName = displayBase + '*'.repeat(5);
+						finalName = (displayBase || finalName) + '*'.repeat(5);
 						break;
 					}
 				}
@@ -224,14 +230,9 @@ export function identifyNewDiffPairs(
 				negativeNet: pair.n,
 			};
 
-			// 根据是否重名分类存储
-			if (isDuplicated) {
-				duplicatedPairs.push(diffPair);
-			} else {
-				normalPairs.push(diffPair);
-			}
+			if (isDuplicated) duplicatedPairs.push(diffPair);
+			else normalPairs.push(diffPair);
 
-			// 更新缓存，防止本次识别出的对之间产生重名
 			existingPairNames.add(finalName);
 		}
 	});
