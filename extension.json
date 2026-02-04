@@ -3,7 +3,7 @@
 	"uuid": "20c8eb9f7a5646b1af6302385c30eff6",
 	"displayName": "EDA Buddy",
 	"description": "EDA伙伴，你的另一个画板小助手",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"publisher": "xiao_wine",
 	"engines": {
 		"eda": "^3.0.0"
