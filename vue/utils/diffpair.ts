@@ -1,5 +1,5 @@
 import type { DiffPairResult } from '../types/diffpair';
-import type { Component, PassiveComponentPair, PassiveComponentWithPins } from '../types/netlist';
+import type { Component, PassiveComponentPair, PassiveComponentWithPins, PinInfo } from '../types/netlist';
 
 // 差分对定义
 interface IPCB_DifferentialPairItem {
@@ -160,6 +160,8 @@ export function identifyNewDiffPairs(
 
 	// 查找后缀在字符串中的出现（要求后缀后为字符串结尾或非字母数字）
 	const findSuffixOccurrence = (netU: string, suffixes: string[]) => {
+		// 寻找所有合法匹配，优先选择最长后缀；长度相同时选择最右侧匹配
+		let best: { suffix: string; index: number; length: number } | null = null;
 		for (const s of suffixes) {
 			if (!s) continue;
 			let start = 0;
@@ -169,16 +171,36 @@ export function identifyNewDiffPairs(
 				const after = idx + s.length;
 				const afterChar = after < netU.length ? netU.charAt(after) : '';
 				const afterOk = after >= netU.length || !/[A-Z0-9]/i.test(afterChar);
-				if (afterOk) return { suffix: s, index: idx, length: s.length };
+				if (afterOk) {
+					if (!best || s.length > best.length || (s.length === best.length && idx > best.index)) {
+						best = { suffix: s, index: idx, length: s.length };
+					}
+				}
 				start = idx + 1;
 			}
+		}
+		return best;
+	};
+
+	// --- 3. 遍历并识别 ---
+	const decideRole = (
+		pos: { suffix: string; index: number; length: number } | null,
+		neg: { suffix: string; index: number; length: number } | null,
+	) => {
+		if (pos && !neg) return 'pos' as const;
+		if (!pos && neg) return 'neg' as const;
+		if (pos && neg) {
+			const posEnd = pos.index + pos.length;
+			const negEnd = neg.index + neg.length;
+			if (posEnd > negEnd) return 'pos' as const;
+			if (negEnd > posEnd) return 'neg' as const;
+			return pos.length >= neg.length ? ('pos' as const) : ('neg' as const);
 		}
 		return null;
 	};
 
-	// --- 3. 遍历并识别 ---
-	uniqueNetList.forEach((net) => {
-		if (!net || occupiedNets.has(net)) return;
+	for (const net of uniqueNetList) {
+		if (!net || occupiedNets.has(net)) continue;
 
 		const netStr = String(net);
 		const netU = netStr.toUpperCase();
@@ -186,22 +208,23 @@ export function identifyNewDiffPairs(
 		const posFound = findSuffixOccurrence(netU, posSuffixesUpper);
 		const negFound = findSuffixOccurrence(netU, negSuffixesUpper);
 
-		if (posFound) {
-			const { index, length } = posFound;
+		const role = decideRole(posFound, negFound);
+		if (role === 'pos') {
+			const { index, length } = posFound!;
 			const base = netStr.slice(0, index) + netStr.slice(index + length);
 			const key = (base || '').trim().toUpperCase();
 			if (!potentialMap.has(key)) potentialMap.set(key, { origBase: base });
 			const entry = potentialMap.get(key)!;
 			if (!entry.p) entry.p = netStr;
-		} else if (negFound) {
-			const { index, length } = negFound;
+		} else if (role === 'neg') {
+			const { index, length } = negFound!;
 			const base = netStr.slice(0, index) + netStr.slice(index + length);
 			const key = (base || '').trim().toUpperCase();
 			if (!potentialMap.has(key)) potentialMap.set(key, { origBase: base });
 			const entry = potentialMap.get(key)!;
 			if (!entry.n) entry.n = netStr;
 		}
-	});
+	}
 
 	// --- 4. 冲突处理与组装 ---
 	potentialMap.forEach((pair) => {
@@ -253,6 +276,7 @@ export function identifyNewDiffPairs(
 export const findSingleNetPassivesByPairs = (
 	components: Record<string, Component>,
 	existingPairs: Array<IPCB_DifferentialPairItem>,
+	powerNets: Set<string>,
 ): PassiveComponentPair[] => {
 	const result: PassiveComponentPair[] = [];
 	if (!existingPairs || existingPairs.length === 0) {
@@ -276,9 +300,9 @@ export const findSingleNetPassivesByPairs = (
 		}
 
 		// 在正网络上查找单端器件
-		const posPassives = filterSingleNetPassives(posNet, existingNets, allComponents);
+		const posPassives = filterSingleNetPassives(posNet, existingNets, allComponents, powerNets);
 		// 在负网络上查找单端器件
-		const negPassives = filterSingleNetPassives(negNet, existingNets, allComponents);
+		const negPassives = filterSingleNetPassives(negNet, existingNets, allComponents, powerNets);
 
 		// 如果任一网络有未配对的器件，就记录为一个条目
 		if (posPassives.length > 0 || negPassives.length > 0) {
@@ -289,7 +313,9 @@ export const findSingleNetPassivesByPairs = (
 			// 收集器件位号
 			const posDesignators = posPassives.map((p) => p.component.props.Designator);
 			const negDesignators = negPassives.map((p) => p.component.props.Designator);
-
+			if (posDesignators.length !== negDesignators.length) {
+				return;
+			}
 			result.push({
 				differentialPairName: `${diffPair.name}*`,
 				existingPositiveNet: posNet,
@@ -314,7 +340,12 @@ export const findSingleNetPassivesByPairs = (
  * 筛选连接到指定网络的单端器件（电阻或电容）
  * 条件：只有2个pin，其中1个连接到指定网络，另1个不连接到existingNets中的任何网络
  */
-const filterSingleNetPassives = (netName: string, existingNets: Set<string>, allComponents: Component[]): PassiveComponentWithPins[] => {
+const filterSingleNetPassives = (
+	netName: string,
+	existingNets: Set<string>,
+	allComponents: Component[],
+	powerNets: Set<string>,
+): PassiveComponentWithPins[] => {
 	const list: PassiveComponentWithPins[] = [];
 
 	allComponents.forEach((component) => {
@@ -325,7 +356,7 @@ const filterSingleNetPassives = (netName: string, existingNets: Set<string>, all
 		const firstChar = designator.trim().charAt(0).toUpperCase();
 		if (firstChar !== 'C' && firstChar !== 'R') return;
 
-		const pinInfoMap: Record<string, any> = component.pinInfoMap || {};
+		const pinInfoMap: Record<string, PinInfo> = component.pinInfoMap || {};
 		const totalPins = Object.values(pinInfoMap).length;
 
 		// 只处理2pin的器件
@@ -333,7 +364,12 @@ const filterSingleNetPassives = (netName: string, existingNets: Set<string>, all
 			return;
 		}
 
-		const pins = Object.values(pinInfoMap) as any[];
+		const pins = Object.values(pinInfoMap);
+
+		if (powerNets.has(pins[0]?.net) || powerNets.has(pins[1]?.net)) {
+			return;
+		}
+
 		const connectedToNet = pins.filter((p) => p?.net === netName);
 		const otherPin = pins.find((p) => p?.net !== netName);
 
@@ -363,3 +399,57 @@ const filterSingleNetPassives = (netName: string, existingNets: Set<string>, all
 
 	return list;
 };
+
+/**
+ * 电源名称匹配正则（包含）
+ *
+ * 精确匹配（作为子串，允许前后任意字符）：
+ * - "*.*v": 数字.数字v，例如 1.2v  -> \d+\.\d+v
+ * - "*v*": 数字v数字或数字v，例如 1v2 或 5v -> \d+v\d*
+ * - "vdd*"/"vcc*": vdd/vcc 后可跟字母或数字 -> vdd[a-z0-9]* / vcc[a-z0-9]*
+ * - "vbus*": vbus 后可跟数字 -> vbus\d*
+ */
+export const POWER_INCLUDE_REGEX = /(?:(?:\d+\.\d+v)|(?:\d+v\d*)|vdd[a-z0-9]*|vcc[a-z0-9]*|vbus\d*)/i;
+
+/**
+ * 电源名称排除正则（任意位置匹配）
+ * 包含 `en`、`fb`、`ctrl` 的字符串将被排除
+ */
+export const POWER_EXCLUDE_REGEX = /(en|fb|ctrl)/i;
+
+/**
+ * 专用：过滤电源网络名
+ * - 保留匹配 `POWER_INCLUDE_REGEX` 的项
+ * - 且排除包含 `en|fb|ctrl` 的项
+ */
+export function filterPowerNets(items: string[]): string[] {
+	return filterStringsByRegex(items, POWER_INCLUDE_REGEX, POWER_EXCLUDE_REGEX);
+}
+
+/**
+ * 过滤字符串数组：必须匹配 include（正则或子串），且不匹配 exclude（正则或子串）
+ *
+ * - `include` 可以是单个 `RegExp`、单个字符串（作为子串匹配），或数组
+ * - `exclude` 同上，可选，不提供则仅按 include 过滤
+ *
+ * 返回符合条件的字符串数组
+ */
+export function filterStringsByRegex(
+	items: string[],
+	include: RegExp | string | Array<RegExp | string>,
+	exclude?: RegExp | string | Array<RegExp | string>,
+): string[] {
+	const includes = Array.isArray(include) ? include : [include];
+	const excludes = exclude ? (Array.isArray(exclude) ? exclude : [exclude]) : [];
+
+	const test = (pattern: RegExp | string, s: string) => {
+		if (pattern instanceof RegExp) return pattern.test(s);
+		return s.indexOf(pattern) !== -1;
+	};
+
+	return items.filter((item) => {
+		const incOk = includes.length === 0 ? true : includes.some((p) => test(p, item));
+		const excOk = excludes.some((p) => test(p, item));
+		return incOk && !excOk;
+	});
+}

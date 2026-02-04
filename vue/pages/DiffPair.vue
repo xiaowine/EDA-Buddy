@@ -106,11 +106,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import DiffPairTable from '../components/DiffPairTable.vue';
 import type { TableAction, TableColumn } from '../components/DiffPairTable.vue';
 import { EasyEDANetlist, PassiveComponentPair } from '../types/netlist';
-import { findSingleNetPassivesByPairs, identifyNewDiffPairs, test } from '../utils/diffpair';
+import { filterPowerNets, findSingleNetPassivesByPairs, identifyNewDiffPairs, test } from '../utils/diffpair';
 import { isEDA, isPCB } from '../utils/utils';
 
 const loading = ref(false);
-type IPCB_DifferentialPairItem = { name: string; positiveNet: string; negativeNet: string };
 
 const duplicatedPairs = ref<IPCB_DifferentialPairItem[]>([]);
 const normalPairs = ref<IPCB_DifferentialPairItem[]>([]);
@@ -261,21 +260,24 @@ const refreshDiffPairs = async () => {
 	try {
 		console.log('开始识别差分对...');
 		let nowNets: string[] = test;
+		let powerNets: Set<string> = new Set();
 		let nowDiffPairsRaw: IPCB_DifferentialPairItem[] = [];
 		let netJson: EasyEDANetlist | null = null;
 		if (isEDA) {
-			nowNets = await eda.pcb_Net.getAllNetsName();
+			const nets = await eda.pcb_Net.getAllNetsName();
+			powerNets = new Set(filterPowerNets(nets));
+			nowNets = nets.filter((n) => !powerNets.has(n));
 			nowDiffPairsRaw = await eda.pcb_Drc.getAllDifferentialPairs();
 			const netList = await eda.pcb_Net.getNetlist(ESYS_NetlistType.JLCEDA_PRO);
 			netJson = JSON.parse(netList) as EasyEDANetlist;
 		}
-		// console.log(typeof nowNets, nowNets);
+		console.log(typeof nowNets, nowNets);
 		// console.log('获取网络数量:', nowNets.length);
 		// console.log('获取现有差分对:', nowDiffPairsRaw);
 		totalNets.value = nowNets.length;
 		const existingSimple = nowDiffPairsRaw || [];
-		const res = identifyNewDiffPairs(nowNets, existingSimple as any);
-		// console.log('识别结果 - 正常对:', res.normalPairs?.length, '重名对:', res.duplicatedPairs?.length);
+		const res = identifyNewDiffPairs(nowNets, existingSimple);
+		// console.log('识别结果 - 正常对:', res.normalPairs, '重名对:', res.duplicatedPairs);
 		duplicatedPairs.value = res.duplicatedPairs || [];
 		normalPairs.value = res.normalPairs || [];
 		existingPairs.value = res.existingPairs || existingSimple || [];
@@ -283,7 +285,7 @@ const refreshDiffPairs = async () => {
 		if (isEDA) {
 			// 查找连接到已存在差分对网络的单端器件对
 			try {
-				passiveComponentPairs.value = findSingleNetPassivesByPairs(netJson!.components, existingPairs.value);
+				passiveComponentPairs.value = findSingleNetPassivesByPairs(netJson!.components, existingPairs.value, powerNets);
 				console.log('检测到的单端器件对:', passiveComponentPairs.value);
 			} catch (err) {
 				console.log('查找单端器件时出错:', err);
